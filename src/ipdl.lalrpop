@@ -2,9 +2,15 @@ use ast::{IncludeType, Node};
 
 grammar;
 
+pub CxxIncludeStmt: Node = {
+  "include" <file:STRING> => Node::CxxInclude(file),
+};
+
 pub IncludeStmt: Node = {
     "include" "protocol" <id:ID> => Node::Include(IncludeType::Protocol, id) /* resolveIncludePath etc. */,
     "include" <id:ID> => Node::Include(IncludeType::Header, id),
 };
 
 ID: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
+
+STRING: String = <s:r#""[^"\n]*""#> => String::from(s);

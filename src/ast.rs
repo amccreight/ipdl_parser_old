@@ -6,5 +6,6 @@ pub enum IncludeType {
 
 #[derive(Debug)]
 pub enum Node {
-    Include(IncludeType, String)
+    CxxInclude(String),
+    Include(IncludeType, String),
 }
