@@ -1,0 +1,11 @@
+[package]
+name = "ipdl_parser"
+version = "0.1.0"
+authors = ["Andrew McCreight <continuation@gmail.com>"]
+build = "build.rs"
+
+[build-dependencies]
+lalrpop = "0.12.1"
+
+[dependencies]
+lalrpop-util = "0.12.1"
