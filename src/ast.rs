@@ -92,6 +92,11 @@ pub enum NamespacedNode {
 }
 
 #[derive(Debug)]
+pub enum MessageModifier {
+    Verify, Compress, CompressAll,
+}
+
+#[derive(Debug)]
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),

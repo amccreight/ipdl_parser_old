@@ -1,4 +1,5 @@
-use ast::{CxxTypeKind, IncludeType, Node, Namespace, NamespacedNode, QualifiedId, StructField, TypeSpec};
+use ast::{CxxTypeKind, IncludeType, MessageModifier, Node, Namespace,
+          NamespacedNode, QualifiedId, StructField, TypeSpec};
 
 grammar;
 
@@ -119,6 +120,34 @@ UnionDecl: (Namespace, NamespacedNode) = {
 // XXX ManagesStmtsOpt
 
 // XXX ManagesStmt
+
+
+//--------------------
+// Message decls
+
+// XXX MessageDeclsOpt
+
+// XXX MessageDeclThing
+
+// XXX MessageDirectionLabel
+
+// XXX MessageDecl
+
+// XXX MessageBody
+
+// XXX MessageId
+
+// XXX MessageInParams
+
+// XXX MessageOutParams
+
+// XXX OptionalMessageModifiers
+
+MessageModifier: MessageModifier = {
+    "verify" => MessageModifier::Verify,
+    "compress" => MessageModifier::Compress,
+    "compressall" => MessageModifier::CompressAll,
+};
 
 
 //--------------------
