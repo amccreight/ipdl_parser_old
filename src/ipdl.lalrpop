@@ -62,11 +62,14 @@ State = { ID };
 //--------------------
 // Minor stuff
 
-// Type
+Type: TypeSpec = {
+    // only actor types are nullable; we check this in the type checker
+    <is_nullable: "nullable"?> <t:BasicType> => t.set_nullable(is_nullable.is_some())
+};
 
 BasicType: TypeSpec = {
     ScalarType,
-    <t:ScalarType> "[" "]" => t.set_array()
+    <t:ScalarType> "[" "]" => t.set_array(true)
 };
 
 ScalarType: TypeSpec = {
@@ -81,6 +84,7 @@ ScalarType: TypeSpec = {
 ActorType: TypeSpec = {
     <id:ID> ":" <st:State> => TypeSpec::new(QualifiedId::new(id)).add_state(st)
 };
+
 
 //--------------------
 // C++ stuff

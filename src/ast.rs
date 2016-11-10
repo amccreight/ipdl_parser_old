@@ -27,11 +27,12 @@ pub struct TypeSpec {
     spec: QualifiedId,
     state: Option<String>,
     array: bool,
+    nullable: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, state: None, array: false }
+        TypeSpec { spec: spec, state: None, array: false, nullable: false }
     }
 
     pub fn add_state(mut self, state: String) -> TypeSpec {
@@ -39,8 +40,13 @@ impl TypeSpec {
         self
     }
 
-    pub fn set_array(mut self) -> TypeSpec {
-        self.array = true;
+    pub fn set_array(mut self, is_array: bool) -> TypeSpec {
+        self.array = is_array;
+        self
+    }
+
+    pub fn set_nullable(mut self, is_nullable: bool) -> TypeSpec {
+        self.nullable = is_nullable;
         self
     }
 }
