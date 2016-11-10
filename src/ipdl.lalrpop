@@ -64,7 +64,15 @@ State = { ID };
 
 // Type
 // BasicType
-// ScalarType
+
+ScalarType: TypeSpec = {
+    ActorType,
+    <id:CxxID> => {
+        // ID == CxxType; we forbid qnames here,
+        // in favor of the |using| declaration
+        TypeSpec::new(QualifiedId::new(id))
+    }
+};
 
 ActorType: TypeSpec = {
     <id:ID> ":" <st:State> => TypeSpec::new(QualifiedId::new(id)).add_state(st)
