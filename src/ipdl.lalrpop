@@ -32,6 +32,45 @@ pub UsingStmt: Node = {
 
 
 //--------------------
+// Namespaced stuff
+
+
+// NamespacedStuff
+
+// NamespaceThing
+
+// StructDecl
+
+// StructFields
+
+// StructField
+
+// UnionDecl
+
+// ComponentTypes
+
+// ProtocolDefn
+
+// ProtocolBody
+
+//--------------------
+// State machine
+
+State = { ID };
+
+
+//--------------------
+// Minor stuff
+
+// Type
+// BasicType
+// ScalarType
+
+ActorType: TypeSpec = {
+    <id:ID> ":" <st:State> => TypeSpec::new(QualifiedId::new(id)).add_state(st)
+};
+
+//--------------------
 // C++ stuff
 
 CxxType: TypeSpec = {

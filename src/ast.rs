@@ -24,12 +24,18 @@ impl QualifiedId {
 
 #[derive(Debug)]
 pub struct TypeSpec {
-    spec: QualifiedId
+    spec: QualifiedId,
+    state: Option<String>,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec }
+        TypeSpec { spec: spec, state: None }
+    }
+
+    pub fn add_state(mut self, state: String) -> TypeSpec {
+        self.state = Some(state);
+        self
     }
 }
 
