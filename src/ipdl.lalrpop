@@ -84,9 +84,27 @@ UnionDecl: (Namespace, NamespacedNode) = {
     }
 };
 
-// ProtocolDefn
+// XXX ProtocolDefn
 
-// ProtocolBody
+// XXX ProtocolBody
+
+
+//--------------------
+// spawns/bridges/opens stmts
+
+// XXX SpawnsStmtsOpt
+
+// XXX SpawnsStmt
+
+// XXX AsOpt
+
+// XXX BridgesStmtsOpt
+
+// XXX BridgesStmt
+
+// XXX OpensStmtsOpt
+
+// XXX OpensStmt
 
 
 //--------------------
