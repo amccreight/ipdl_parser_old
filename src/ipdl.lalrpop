@@ -1,5 +1,5 @@
 use ast::{CxxTypeKind, IncludeType, MessageModifier, Node, Namespace,
-          NamespacedNode, QualifiedId, StructField, TypeSpec};
+          NamespacedNode, Param, QualifiedId, StructField, TypeSpec};
 
 grammar;
 
@@ -158,6 +158,24 @@ State = { ID };
 
 //--------------------
 // Minor stuff
+
+ParamList: Vec<Param> = {
+    <l:ParamList> "," <p:Param> => {
+        let mut l = l;
+        l.push(p);
+        l
+    },
+    <p:Param> => {
+        let mut l = Vec::new();
+        l.push(p);
+        l
+    } ,
+    => Vec::new()
+};
+
+Param: Param = {
+    <t:Type> <name:ID> => Param::new(t, name)
+};
 
 Type: TypeSpec = {
     // only actor types are nullable; we check this in the type checker
