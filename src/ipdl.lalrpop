@@ -1,4 +1,4 @@
-use ast::{IncludeType, Node, QualifiedId, TypeSpec};
+use ast::{CxxTypeKind, IncludeType, Node, QualifiedId, TypeSpec};
 
 grammar;
 
@@ -11,10 +11,11 @@ pub IncludeStmt: Node = {
     "include" <id:ID> => Node::Include(IncludeType::Header, id),
 };
 
-
-//pub UsingStmt: Node = {
-//    "using"
-//};
+pub UsingStmt: Node = {
+    "using" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: None },
+    "using" "class" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(CxxTypeKind::Class) },
+    "using" "struct" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(CxxTypeKind::Struct) },
+};
 
 ID: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
 

@@ -34,8 +34,15 @@ impl TypeSpec {
 }
 
 #[derive(Debug)]
+pub enum CxxTypeKind {
+  Struct,
+  Class,
+}
+
+#[derive(Debug)]
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
+    Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
     TypeSpec(TypeSpec),
 }
