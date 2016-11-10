@@ -1,7 +1,7 @@
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
           MessageModifier, Node, Namespace, Nesting, NamespacedNode,
           ParserState, Param, Priority, QualifiedId, SendSemantics,
-          StructField, Trigger, TypeSpec};
+          StructField, Transition, Trigger, TypeSpec};
 
 grammar(parser_state: &ParserState);
 
@@ -198,6 +198,29 @@ MessageModifier: MessageModifier = {
 //--------------------
 // State machine
 
+Transition: Transition = {
+    <t:Trigger> <name:ID> "goto" <states:StateList> ";" => {
+        if name == "delete" {
+            // XXX Surely there is a better way to create an error.
+            panic!("`delete' is a reserved identifier");
+        }
+        Transition::new(t, name, states)
+    },
+    <t:Trigger> "__delete__" ";" => {
+        let mut states = Vec::new();
+        // XXX This is really supposed to be some special object and
+        // not a string but oh well.
+        states.push(String::from("[dead]"));
+        Transition::new(t, String::from("__delete__"), states)
+    },
+    <t:Trigger> "delete" ";" => {
+        let mut states = Vec::new();
+        // XXX This is really supposed to be some special object and
+        // not a string but oh well.
+        states.push(String::from("[dead]"));
+        Transition::new(t, String::from("delete"), states)
+    },
+};
 
 Trigger: Trigger = {
     "send" => Trigger::Send,
