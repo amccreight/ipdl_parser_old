@@ -37,7 +37,20 @@ pub UsingStmt: Node = {
 
 // NamespacedStuff
 
-// NamespaceThing
+NamespaceThing: Vec<Node> = {
+    // XXX "namespace" <name:ID> "{" <stuff:NamespacedStuff> "}" => Add outer namespace
+    <s:StructDecl> => {
+        let mut v = Vec::new();
+        v.push(s);
+        v
+    },
+    <u:UnionDecl> => {
+        let mut v = Vec::new();
+        v.push(u);
+        v
+    },
+    // XXX <p:ProtocolDefn> => ...
+};
 
 StructDecl: Node = {
     "struct" <name:ID> "{" <raw_fields: (StructField ";")* > => {
