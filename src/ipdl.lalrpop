@@ -198,6 +198,14 @@ MessageModifier: MessageModifier = {
 //--------------------
 // State machine
 
+// XXX TransitionStmtsOpt
+
+// XXX TransitionStmt
+
+// XXX OptionalStart
+
+// XXX Transitions
+
 Transition: Transition = {
     <t:Trigger> <name:ID> "goto" <states:StateList> ";" => {
         if name == "delete" {
