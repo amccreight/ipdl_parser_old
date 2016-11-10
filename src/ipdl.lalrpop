@@ -108,6 +108,20 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 
 //--------------------
+// manager/manages stmts
+
+// XXX ManagersStmtOpt
+
+// XXX ManagersStmt
+
+// XXX ManagerList
+
+// XXX ManagesStmtsOpt
+
+// XXX ManagesStmt
+
+
+//--------------------
 // State machine
 
 State = { ID };
