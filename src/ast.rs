@@ -52,6 +52,18 @@ impl TypeSpec {
 }
 
 #[derive(Debug)]
+pub struct Param {
+    name: String,
+    type_spec: TypeSpec,
+}
+
+impl Param {
+    pub fn new(type_spec: TypeSpec, name: String) -> Param {
+        Param { name: name, type_spec: type_spec }
+    }
+}
+
+#[derive(Debug)]
 pub enum CxxTypeKind {
   Struct,
   Class,
@@ -94,18 +106,6 @@ pub enum NamespacedNode {
 #[derive(Debug)]
 pub enum MessageModifier {
     Verify, Compress, CompressAll,
-}
-
-#[derive(Debug)]
-pub struct Param {
-    name: String,
-    type_spec: TypeSpec,
-}
-
-impl Param {
-    pub fn new(type_spec: TypeSpec, name: String) -> Param {
-        Param { name: name, type_spec: type_spec }
-    }
 }
 
 #[derive(Debug)]
