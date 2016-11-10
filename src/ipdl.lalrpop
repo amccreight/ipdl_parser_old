@@ -2,6 +2,10 @@ use ast::{CxxTypeKind, IncludeType, Node, QualifiedId, TypeSpec};
 
 grammar;
 
+//--------------------
+// Preamble
+pub Preamble = { (PreambleStmt ";")* };
+
 pub PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
 
 pub CxxIncludeStmt: Node = {
