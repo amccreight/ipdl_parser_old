@@ -2,6 +2,8 @@ use ast::{CxxTypeKind, IncludeType, Node, QualifiedId, TypeSpec};
 
 grammar;
 
+pub PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
+
 pub CxxIncludeStmt: Node = {
   "include" <file:STRING> => Node::CxxInclude(file),
 };
