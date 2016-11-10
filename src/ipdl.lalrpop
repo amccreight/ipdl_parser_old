@@ -53,9 +53,15 @@ StructField: StructField = {
     <t:Type> <field_name:ID> => StructField::new(t, field_name)
 };
 
-// UnionDecl
-
-// ComponentTypes
+UnionDecl: Node = {
+    "union" <name:ID> "{" <raw_components: (Type ";")+ > => {
+        let mut components = Vec::new();
+        for (c, _) in raw_components {
+            components.push(c);
+        }
+        Node::UnionDecl { namespace: Namespace::new(name), components: components }
+    }
+};
 
 // ProtocolDefn
 

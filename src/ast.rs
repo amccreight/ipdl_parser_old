@@ -86,6 +86,7 @@ pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
     StructDecl { namespace: Namespace, fields: Vec<StructField> },
+    UnionDecl { namespace: Namespace, components: Vec<TypeSpec> },
     TypeSpec(TypeSpec),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
 }
