@@ -129,7 +129,10 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX MessageDeclsOpt
 
-// XXX MessageDeclThing
+MessageDeclThing : MessageDecl = {
+    MessageDirectionLabel ":" <m:MessageDecl> ";" => m,
+    <m:MessageDecl> ";" => m,
+};
 
 MessageDirectionLabel : () = {
     "parent" => parser_state.direction.set(Some(Direction::In)),
