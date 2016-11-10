@@ -1,9 +1,9 @@
-use ast::{Compress, CxxTypeKind, IncludeType, MessageDecl,
+use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
           MessageModifier, Node, Namespace, Nesting, NamespacedNode,
-          Param, Priority, QualifiedId, SendSemantics, StructField,
-          TypeSpec};
+          ParserState, Param, Priority, QualifiedId, SendSemantics,
+          StructField, TypeSpec};
 
-grammar;
+grammar(parser_state: &ParserState);
 
 //-----------------------------------------------------------------------------
 
@@ -131,9 +131,30 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX MessageDeclThing
 
-// XXX MessageDirectionLabel
+MessageDirectionLabel : () = {
+    "parent" => parser_state.direction.set(Some(Direction::In)),
+    "child" => parser_state.direction.set(Some(Direction::Out)),
+    "both" => parser_state.direction.set(Some(Direction::InOut)),
+};
 
-// XXX MessageDecl
+MessageDecl: MessageDecl = {
+    <qual:SendSemanticsQual> <msg:MessageBody> => {
+        let mut msg = msg;
+        msg.nesting = qual.0;
+        msg.prio = qual.1;
+        msg.send_semantics = qual.2;
+
+        // XXX Why isn't direction set in MessageBody? Then it might
+        // not need to be an Option.
+        if parser_state.direction.get().is_none() {
+            // XXX Surely there's a better way to do this.
+            panic!("Missing message direction.");
+        }
+        msg.direction = parser_state.direction.get().clone();
+
+        msg
+    },
+};
 
 MessageBody: MessageDecl = {
     <name:MessageId> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> <modifiers:MessageModifier*> => {

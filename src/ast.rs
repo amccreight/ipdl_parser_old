@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 #[derive(Debug)]
 pub enum IncludeType {
     Protocol,
@@ -130,7 +132,7 @@ pub enum Priority {
     High,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     In,
     Out,
@@ -140,10 +142,10 @@ pub enum Direction {
 #[derive(Debug)]
 pub struct MessageDecl {
     name: String,
-    send_semantics: SendSemantics,
-    nesting: Nesting,
-    prio: Priority,
-    direction: Option<Direction>,
+    pub send_semantics: SendSemantics,
+    pub nesting: Nesting,
+    pub prio: Priority,
+    pub direction: Option<Direction>,
     in_params: Vec<Param>,
     out_params: Vec<Param>,
     compress: Compress,
@@ -196,4 +198,14 @@ pub enum Node {
     Namespaced { namespace: Namespace, node: NamespacedNode },
     TypeSpec(TypeSpec),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
+}
+
+pub struct ParserState {
+    pub direction: Cell<Option<Direction>>,
+}
+
+impl ParserState {
+    pub fn new() -> ParserState {
+        ParserState { direction: Cell::new(None) }
+    }
 }
