@@ -43,7 +43,9 @@ pub UsingStmt: Node = {
 
 // StructFields
 
-// StructField
+StructField: Node = {
+    <t:Type> <field_name:ID> => Node::StructField { type_spec: t, name: field_name }
+};
 
 // UnionDecl
 
@@ -52,6 +54,7 @@ pub UsingStmt: Node = {
 // ProtocolDefn
 
 // ProtocolBody
+
 
 //--------------------
 // State machine

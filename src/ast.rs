@@ -61,6 +61,7 @@ pub enum CxxTypeKind {
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
-    Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
+    StructField { type_spec: TypeSpec, name: String },
     TypeSpec(TypeSpec),
+    Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
 }
