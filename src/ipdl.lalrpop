@@ -135,11 +135,26 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX MessageBody
 
-// XXX MessageId
+MessageId: String = {
+    <id:ID> => id,
+    // The Python IPDL parser has a separate case for ID and the
+    // keyword "delete". It produces an error if the ID is
+    // "delete". However, I think the error is impossible, because the
+    // rule for ID will capitalize the string "delete". I don't think
+    // a separate case for the keyword delete is needed, and I don't
+    // know how they would even be distinguished.
+    "__delete__" => String::from("__delete__"),
+    // The Python IPDL parser has a case for "~" ID, but it just
+    // produces an obsolescence error. The error message dates back to
+    // at least 2010, so I don't think it is needed any more.
+};
 
 // XXX MessageInParams
 
-// XXX MessageOutParams
+MessageOutParams: Vec<Param> = {
+    "returns" "(" <l:ParamList> ")" => l,
+    => Vec::new(),
+};
 
 // XXX OptionalMessageModifiers
 
