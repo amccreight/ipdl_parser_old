@@ -1,6 +1,7 @@
 use ast::{Compress, CxxTypeKind, IncludeType, MessageDecl,
-          MessageModifier, Node, Namespace, NamespacedNode, Param,
-          QualifiedId, StructField, TypeSpec};
+          MessageModifier, Node, Namespace, Nesting, NamespacedNode,
+          Param, Priority, QualifiedId, SendSemantics, StructField,
+          TypeSpec};
 
 grammar;
 
@@ -178,6 +179,39 @@ State = { ID };
 
 //--------------------
 // Minor stuff
+
+Nesting: Nesting = {
+    "not" => Nesting::None,
+    "inside_sync" => Nesting::InsideSync,
+    "inside_cpow" => Nesting::InsideCpow,
+};
+
+Priority: Priority = {
+    "normal" => Priority::Normal,
+    "high" => Priority::High,
+};
+
+SendQualifier: (Option<Nesting>, Option<Priority>) = {
+    "nested" "(" <n:Nesting> ")" => (Some(n), None),
+    "prio" "(" <p:Priority> ")" => (None, Some(p)),
+};
+
+SendQualifierList: (Option<Nesting>, Option<Priority>) = {
+    <q:SendQualifier> <l:SendQualifierList> => (l.0.or(q.0), l.1.or(q.1)),
+    => (None, None)
+};
+
+SendSemanticsQual: (Nesting, Priority, SendSemantics) = {
+    <l:SendQualifierList> "async" =>
+        (l.0.unwrap_or(Nesting::None),
+         l.1.unwrap_or(Priority::Normal),
+         SendSemantics::Async),
+    <l:SendQualifierList> "sync" =>
+        (l.0.unwrap_or(Nesting::None),
+         l.1.unwrap_or(Priority::Normal),
+         SendSemantics::Sync),
+    "intr" => (Nesting::None, Priority::Normal, SendSemantics::Intr)
+};
 
 ParamList: Vec<Param> = {
     <l:ParamList> "," <p:Param> => {

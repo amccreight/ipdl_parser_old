@@ -99,32 +99,42 @@ impl Namespace {
 
 #[derive(Debug)]
 pub enum Compress {
-    None, Enabled, All,
+    None,
+    Enabled,
+    All,
 }
 
 #[derive(Debug)]
 pub enum MessageModifier {
-    Verify, Compress(Compress),
+    Verify,
+    Compress(Compress),
 }
 
 #[derive(Debug)]
 pub enum SendSemantics {
     Async,
+    Sync,
+    Intr,
 }
 
 #[derive(Debug)]
 pub enum Nesting {
     None,
+    InsideSync,
+    InsideCpow,
 }
 
 #[derive(Debug)]
 pub enum Priority {
     Normal,
+    High,
 }
 
 #[derive(Debug)]
 pub enum Direction {
-    In, Out, InOut,
+    In,
+    Out,
+    InOut,
 }
 
 #[derive(Debug)]
