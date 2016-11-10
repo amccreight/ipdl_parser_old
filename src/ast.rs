@@ -58,10 +58,34 @@ pub enum CxxTypeKind {
 }
 
 #[derive(Debug)]
+pub struct StructField {
+    type_spec: TypeSpec,
+    name: String,
+}
+
+impl StructField {
+    pub fn new(ty: TypeSpec, name: String) -> StructField {
+        StructField { type_spec: ty, name: name }
+    }
+}
+
+#[derive(Debug)]
+pub struct Namespace {
+    name: String,
+    namespaces: Vec<String>,
+}
+
+impl Namespace {
+    pub fn new(name: String) -> Namespace {
+        Namespace { name: name, namespaces: Vec::new() }
+    }
+}
+
+#[derive(Debug)]
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
-    StructField { type_spec: TypeSpec, name: String },
+    StructDecl { namespace: Namespace, fields: Vec<StructField> },
     TypeSpec(TypeSpec),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
 }

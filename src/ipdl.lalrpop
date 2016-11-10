@@ -1,4 +1,4 @@
-use ast::{CxxTypeKind, IncludeType, Node, QualifiedId, TypeSpec};
+use ast::{CxxTypeKind, IncludeType, Node, Namespace, QualifiedId, StructField, TypeSpec};
 
 grammar;
 
@@ -39,12 +39,18 @@ pub UsingStmt: Node = {
 
 // NamespaceThing
 
-// StructDecl
+StructDecl: Node = {
+    "struct" <name:ID> "{" <raw_fields: (StructField ";")* > => {
+        let mut fields = Vec::new();
+        for (f, _) in raw_fields {
+            fields.push(f);
+        }
+        Node::StructDecl { namespace: Namespace::new(name), fields: fields }
+    }
+};
 
-// StructFields
-
-StructField: Node = {
-    <t:Type> <field_name:ID> => Node::StructField { type_spec: t, name: field_name }
+StructField: StructField = {
+    <t:Type> <field_name:ID> => StructField::new(t, field_name)
 };
 
 // UnionDecl
