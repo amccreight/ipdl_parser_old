@@ -63,7 +63,11 @@ State = { ID };
 // Minor stuff
 
 // Type
-// BasicType
+
+BasicType: TypeSpec = {
+    ScalarType,
+    <t:ScalarType> "[" "]" => t.set_array()
+};
 
 ScalarType: TypeSpec = {
     ActorType,
