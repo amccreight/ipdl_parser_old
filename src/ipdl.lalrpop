@@ -1,4 +1,4 @@
-use ast::{CxxTypeKind, IncludeType, Node, Namespace, QualifiedId, StructField, TypeSpec};
+use ast::{CxxTypeKind, IncludeType, Node, Namespace, NamespacedNode, QualifiedId, StructField, TypeSpec};
 
 grammar;
 
@@ -34,11 +34,19 @@ pub UsingStmt: Node = {
 //--------------------
 // Namespaced stuff
 
+// NamespacedStuff is just NamespaceThing.
 
-// NamespacedStuff
-
-NamespaceThing: Vec<Node> = {
-    // XXX "namespace" <name:ID> "{" <stuff:NamespacedStuff> "}" => Add outer namespace
+NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
+    "namespace" <name:ID> "{" <many_things:NamespaceThing+> "}" => {
+        let mut things = Vec::new();
+        for old_things in many_things {
+            for (mut ns, node) in old_things {
+                ns.add_outer_namespace(&name);
+                things.push((ns, node))
+            }
+        }
+        things
+    },
     <s:StructDecl> => {
         let mut v = Vec::new();
         v.push(s);
@@ -52,13 +60,13 @@ NamespaceThing: Vec<Node> = {
     // XXX <p:ProtocolDefn> => ...
 };
 
-StructDecl: Node = {
+StructDecl: (Namespace, NamespacedNode) = {
     "struct" <name:ID> "{" <raw_fields: (StructField ";")* > => {
         let mut fields = Vec::new();
         for (f, _) in raw_fields {
             fields.push(f);
         }
-        Node::StructDecl { namespace: Namespace::new(name), fields: fields }
+        (Namespace::new(name), NamespacedNode::StructDecl(fields))
     }
 };
 
@@ -66,13 +74,13 @@ StructField: StructField = {
     <t:Type> <field_name:ID> => StructField::new(t, field_name)
 };
 
-UnionDecl: Node = {
+UnionDecl: (Namespace, NamespacedNode) = {
     "union" <name:ID> "{" <raw_components: (Type ";")+ > => {
         let mut components = Vec::new();
         for (c, _) in raw_components {
             components.push(c);
         }
-        Node::UnionDecl { namespace: Namespace::new(name), components: components }
+        (Namespace::new(name), NamespacedNode::UnionDecl(components))
     }
 };
 

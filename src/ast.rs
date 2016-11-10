@@ -79,14 +79,23 @@ impl Namespace {
     pub fn new(name: String) -> Namespace {
         Namespace { name: name, namespaces: Vec::new() }
     }
+
+    pub fn add_outer_namespace(&mut self, namespace: &String) {
+        self.namespaces.insert(0, namespace.clone());
+    }
+}
+
+#[derive(Debug)]
+pub enum NamespacedNode {
+    StructDecl(Vec<StructField>),
+    UnionDecl(Vec<TypeSpec>),
 }
 
 #[derive(Debug)]
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
-    StructDecl { namespace: Namespace, fields: Vec<StructField> },
-    UnionDecl { namespace: Namespace, components: Vec<TypeSpec> },
+    Namespaced { namespace: Namespace, node: NamespacedNode },
     TypeSpec(TypeSpec),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
 }
