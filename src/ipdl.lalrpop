@@ -1,7 +1,7 @@
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
           MessageModifier, Node, Namespace, Nesting, NamespacedNode,
           ParserState, Param, Priority, QualifiedId, SendSemantics,
-          StructField, TypeSpec};
+          StructField, Trigger, TypeSpec};
 
 grammar(parser_state: &ParserState);
 
@@ -197,6 +197,27 @@ MessageModifier: MessageModifier = {
 
 //--------------------
 // State machine
+
+
+Trigger: Trigger = {
+    "send" => Trigger::Send,
+    "recv" => Trigger::Recv,
+    "call" => Trigger::Call,
+    "answer" => Trigger::Answer,
+};
+
+StateList: Vec<String> = {
+    <l:StateList> "or" <s:State> => {
+        let mut l = l;
+        l.push(s);
+        l
+    },
+    <s:State> => {
+        let mut l = Vec::new();
+        l.push(s);
+        l
+    }
+};
 
 State = { ID };
 

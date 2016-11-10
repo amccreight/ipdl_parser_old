@@ -186,6 +186,14 @@ impl MessageDecl {
 }
 
 #[derive(Debug)]
+pub enum Trigger {
+    Send,
+    Recv,
+    Call,
+    Answer,
+}
+
+#[derive(Debug)]
 pub enum NamespacedNode {
     StructDecl(Vec<StructField>),
     UnionDecl(Vec<TypeSpec>),
