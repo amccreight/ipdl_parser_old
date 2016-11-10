@@ -1,5 +1,6 @@
-use ast::{CxxTypeKind, IncludeType, MessageModifier, Node, Namespace,
-          NamespacedNode, Param, QualifiedId, StructField, TypeSpec};
+use ast::{Compress, CxxTypeKind, IncludeType, MessageDecl,
+          MessageModifier, Node, Namespace, NamespacedNode, Param,
+          QualifiedId, StructField, TypeSpec};
 
 grammar;
 
@@ -133,7 +134,15 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX MessageDecl
 
-// XXX MessageBody
+MessageBody: MessageDecl = {
+    <name:MessageId> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> <modifiers:MessageModifier*> => {
+        let mut decl = MessageDecl::new(name);
+        decl.add_in_params(in_params);
+        decl.add_out_params(out_params);
+        decl.add_modifiers(modifiers);
+        decl
+    },
+};
 
 MessageId: String = {
     <id:ID> => id,
@@ -149,19 +158,15 @@ MessageId: String = {
     // at least 2010, so I don't think it is needed any more.
 };
 
-// XXX MessageInParams
-
 MessageOutParams: Vec<Param> = {
     "returns" "(" <l:ParamList> ")" => l,
     => Vec::new(),
 };
 
-// XXX OptionalMessageModifiers
-
 MessageModifier: MessageModifier = {
     "verify" => MessageModifier::Verify,
-    "compress" => MessageModifier::Compress,
-    "compressall" => MessageModifier::CompressAll,
+    "compress" => MessageModifier::Compress(Compress::Enabled),
+    "compressall" => MessageModifier::Compress(Compress::All),
 };
 
 

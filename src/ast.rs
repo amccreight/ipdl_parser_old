@@ -98,14 +98,85 @@ impl Namespace {
 }
 
 #[derive(Debug)]
-pub enum NamespacedNode {
-    StructDecl(Vec<StructField>),
-    UnionDecl(Vec<TypeSpec>),
+pub enum Compress {
+    None, Enabled, All,
 }
 
 #[derive(Debug)]
 pub enum MessageModifier {
-    Verify, Compress, CompressAll,
+    Verify, Compress(Compress),
+}
+
+#[derive(Debug)]
+pub enum SendSemantics {
+    Async,
+}
+
+#[derive(Debug)]
+pub enum Nesting {
+    None,
+}
+
+#[derive(Debug)]
+pub enum Priority {
+    Normal,
+}
+
+#[derive(Debug)]
+pub enum Direction {
+    In, Out, InOut,
+}
+
+#[derive(Debug)]
+pub struct MessageDecl {
+    name: String,
+    send_semantics: SendSemantics,
+    nesting: Nesting,
+    prio: Priority,
+    direction: Option<Direction>,
+    in_params: Vec<Param>,
+    out_params: Vec<Param>,
+    compress: Compress,
+    verify: bool,
+}
+
+impl MessageDecl {
+    pub fn new(name: String) -> MessageDecl {
+        MessageDecl {
+            name: name,
+            send_semantics: SendSemantics::Async,
+            nesting: Nesting::None,
+            prio: Priority::Normal,
+            direction: None,
+            in_params: Vec::new(),
+            out_params: Vec::new(),
+            compress: Compress::None,
+            verify: false,
+        }
+    }
+
+    pub fn add_in_params(&mut self, mut in_params: Vec<Param>) {
+        self.in_params.append(&mut in_params);
+    }
+
+    pub fn add_out_params(&mut self, mut out_params: Vec<Param>) {
+        self.out_params.append(&mut out_params);
+    }
+
+    pub fn add_modifiers(&mut self, modifiers: Vec<MessageModifier>) {
+        for modifier in modifiers {
+            match modifier {
+                MessageModifier::Compress(c) => self.compress = c,
+                MessageModifier::Verify => self.verify = true,
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum NamespacedNode {
+    StructDecl(Vec<StructField>),
+    UnionDecl(Vec<TypeSpec>),
 }
 
 #[derive(Debug)]
