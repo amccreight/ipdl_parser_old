@@ -29,8 +29,12 @@ pub IncludeStmt: Node = {
 
 pub UsingStmt: Node = {
     "using" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: None },
-    "using" "class" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(CxxTypeKind::Class) },
-    "using" "struct" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(CxxTypeKind::Struct) },
+    "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(k) },
+};
+
+pub CxxTypeKind: CxxTypeKind = {
+    "class" => CxxTypeKind::Class,
+    "struct" => CxxTypeKind::Struct
 };
 
 
