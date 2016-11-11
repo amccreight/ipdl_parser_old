@@ -60,7 +60,11 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
         v.push((u.0, NamespacedNode::UnionDecl(u.1)));
         v
     },
-    // XXX <p:ProtocolDefn> => ...
+    <p:ProtocolDefn> => {
+        let mut v = Vec::new();
+        v.push((p.0, NamespacedNode::Protocol(p.1)));
+        v
+    },
 };
 
 StructDecl: (Namespace, Vec<StructField>) = {
