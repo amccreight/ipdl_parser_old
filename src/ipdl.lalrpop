@@ -115,7 +115,9 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX ManagersStmtOpt
 
-// XXX ManagersStmt
+ManagersStmt: Vec<String> = {
+    "manager" <l:ManagerList> ";" => l
+};
 
 ManagerList: Vec<String> = {
     <name:ID> => {
