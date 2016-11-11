@@ -117,17 +117,28 @@ UnionDecl: (Namespace, NamespacedNode) = {
 
 // XXX ManagersStmt
 
-// XXX ManagerList
+ManagerList: Vec<String> = {
+    <name:ID> => {
+        let mut l = Vec::new();
+        l.push(name);
+        l
+    },
+    <l:ManagerList> "or" <name:ID> => {
+        let mut l = l;
+        l.push(name);
+        l
+    }
+};
 
 // XXX ManagesStmtsOpt
 
-// XXX ManagesStmt
+ManagesStmt: String = {
+    "manages" <name:ID> ";" => name
+};
 
 
 //--------------------
 // Message decls
-
-// XXX MessageDeclsOpt
 
 MessageDeclThing : MessageDecl = {
     MessageDirectionLabel ":" <m:MessageDecl> ";" => m,
