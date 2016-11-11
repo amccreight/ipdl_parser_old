@@ -87,27 +87,17 @@ UnionDecl: (Namespace, NamespacedNode) = {
     }
 };
 
-// XXX ProtocolDefn
+// ProtocolDefn
 
-// XXX ProtocolBody
+// ProtocolBody : SpawnsStmtsOpt
 
+// SpawnsStmtsOpt : ManagersStmtOpt
 
-//--------------------
-// spawns/bridges/opens stmts
+// ManagersStmtOpt : ManagersStmt ManagesStmtsOpt
+//                 | ManagesStmtsOpt
 
-// XXX SpawnsStmtsOpt
-
-// XXX SpawnsStmt
-
-// XXX AsOpt
-
-// XXX BridgesStmtsOpt
-
-// XXX BridgesStmt
-
-// XXX OpensStmtsOpt
-
-// XXX OpensStmt
+// ManagesStmtsOpt : ManagesStmt ManagesStmtsOpt
+//                 | MessageDeclsOpt"""
 
 
 //--------------------
@@ -248,6 +238,14 @@ SendSemanticsQual: (Nesting, Priority, SendSemantics) = {
          l.1.unwrap_or(Priority::Normal),
          SendSemantics::Sync),
     "intr" => (Nesting::None, Priority::Normal, SendSemantics::Intr)
+};
+
+ProtocolSendSemanticsQual: (Nesting, SendSemantics) = {
+    "async" => (Nesting::None, SendSemantics::Async),
+    "sync" => (Nesting::None, SendSemantics::Sync),
+    "nested" "(" "upto" <n:Nesting> ")" "async" => (n, SendSemantics::Async),
+    "nested" "(" "upto" <n:Nesting> ")" "sync" => (n, SendSemantics::Async),
+    "intr" => (Nesting::None, SendSemantics::Intr),
 };
 
 ParamList: Vec<Param> = {
