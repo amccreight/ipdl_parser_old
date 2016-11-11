@@ -41,7 +41,7 @@ pub CxxTypeKind: CxxTypeKind = {
 //--------------------
 // Namespaced stuff
 
-// NamespacedStuff is just NamespaceThing.
+// NamespacedStuff from the Python parser is just NamespaceThing.
 
 NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
     "namespace" <name:ID> "{" <many_things:NamespaceThing+> "}" => {
@@ -54,21 +54,9 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
         }
         things
     },
-    <s:StructDecl> => {
-        let mut v = Vec::new();
-        v.push((s.0, NamespacedNode::Struct(s.1)));
-        v
-    },
-    <u:UnionDecl> => {
-        let mut v = Vec::new();
-        v.push((u.0, NamespacedNode::Union(u.1)));
-        v
-    },
-    <p:ProtocolDefn> => {
-        let mut v = Vec::new();
-        v.push((p.0, NamespacedNode::Protocol(p.1)));
-        v
-    },
+    <s:StructDecl> => vec![(s.0, NamespacedNode::Struct(s.1))],
+    <u:UnionDecl> => vec![(u.0, NamespacedNode::Union(u.1))],
+    <p:ProtocolDefn> => vec![(p.0, NamespacedNode::Protocol(p.1))],
 };
 
 StructDecl: (Namespace, Vec<StructField>) = {
@@ -114,11 +102,7 @@ ManagersStmt: Vec<String> = {
 };
 
 ManagerList: Vec<String> = {
-    <name:ID> => {
-        let mut l = Vec::new();
-        l.push(name);
-        l
-    },
+    <name:ID> => vec![name],
     <l:ManagerList> "or" <name:ID> => {
         let mut l = l;
         l.push(name);
@@ -256,11 +240,7 @@ ParamList: Vec<Param> = {
         l.push(p);
         l
     },
-    <p:Param> => {
-        let mut l = Vec::new();
-        l.push(p);
-        l
-    } ,
+    <p:Param> => vec![p],
     => Vec::new()
 };
 
