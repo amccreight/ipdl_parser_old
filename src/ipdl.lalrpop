@@ -52,12 +52,12 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
     },
     <s:StructDecl> => {
         let mut v = Vec::new();
-        v.push((s.0, NamespacedNode::StructDecl(s.1)));
+        v.push((s.0, NamespacedNode::Struct(s.1)));
         v
     },
     <u:UnionDecl> => {
         let mut v = Vec::new();
-        v.push((u.0, NamespacedNode::UnionDecl(u.1)));
+        v.push((u.0, NamespacedNode::Union(u.1)));
         v
     },
     <p:ProtocolDefn> => {

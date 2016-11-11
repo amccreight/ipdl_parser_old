@@ -204,8 +204,8 @@ impl Protocol {
 
 #[derive(Debug)]
 pub enum NamespacedNode {
-    StructDecl(Vec<StructField>),
-    UnionDecl(Vec<TypeSpec>),
+    Struct(Vec<StructField>),
+    Union(Vec<TypeSpec>),
     Protocol(Protocol),
 }
 
