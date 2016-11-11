@@ -52,24 +52,24 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
     },
     <s:StructDecl> => {
         let mut v = Vec::new();
-        v.push(s);
+        v.push((s.0, NamespacedNode::StructDecl(s.1)));
         v
     },
     <u:UnionDecl> => {
         let mut v = Vec::new();
-        v.push(u);
+        v.push((u.0, NamespacedNode::UnionDecl(u.1)));
         v
     },
     // XXX <p:ProtocolDefn> => ...
 };
 
-StructDecl: (Namespace, NamespacedNode) = {
+StructDecl: (Namespace, Vec<StructField>) = {
     "struct" <name:ID> "{" <raw_fields: (StructField ";")* > => {
         let mut fields = Vec::new();
         for (f, _) in raw_fields {
             fields.push(f);
         }
-        (Namespace::new(name), NamespacedNode::StructDecl(fields))
+        (Namespace::new(name), fields)
     }
 };
 
@@ -77,13 +77,13 @@ StructField: StructField = {
     <t:Type> <field_name:ID> => StructField::new(t, field_name)
 };
 
-UnionDecl: (Namespace, NamespacedNode) = {
+UnionDecl: (Namespace, Vec<TypeSpec>) = {
     "union" <name:ID> "{" <raw_components: (Type ";")+ > => {
         let mut components = Vec::new();
         for (c, _) in raw_components {
             components.push(c);
         }
-        (Namespace::new(name), NamespacedNode::UnionDecl(components))
+        (Namespace::new(name), components)
     }
 };
 
