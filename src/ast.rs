@@ -186,27 +186,6 @@ impl MessageDecl {
 }
 
 #[derive(Debug)]
-pub enum Trigger {
-    Send,
-    Recv,
-    Call,
-    Answer,
-}
-
-#[derive(Debug)]
-pub struct Transition {
-    trigger: Trigger,
-    msg: String,
-    to_states: Vec<String>,
-}
-
-impl Transition {
-    pub fn new(trigger: Trigger, msg: String, to_states: Vec<String>) -> Transition {
-        Transition { trigger: trigger, msg: msg, to_states: to_states }
-    }
-}
-
-#[derive(Debug)]
 pub enum NamespacedNode {
     StructDecl(Vec<StructField>),
     UnionDecl(Vec<TypeSpec>),
