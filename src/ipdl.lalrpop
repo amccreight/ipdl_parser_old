@@ -1,6 +1,6 @@
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
           MessageModifier, Node, Namespace, Nesting, NamespacedNode,
-          ParserState, Param, Priority, QualifiedId, SendSemantics,
+          ParserState, Param, Priority, Protocol, QualifiedId, SendSemantics,
           StructField, TypeSpec};
 
 grammar(parser_state: &ParserState);
@@ -87,23 +87,19 @@ UnionDecl: (Namespace, NamespacedNode) = {
     }
 };
 
-// ProtocolDefn
-
-// ProtocolBody : SpawnsStmtsOpt
-
-// SpawnsStmtsOpt : ManagersStmtOpt
-
-// ManagersStmtOpt : ManagersStmt ManagesStmtsOpt
-//                 | ManagesStmtsOpt
-
-// ManagesStmtsOpt : ManagesStmt ManagesStmtsOpt
-//                 | MessageDeclsOpt"""
+ProtocolDefn: (Namespace, Protocol) = {
+    <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
+        <managers:ManagersStmt*> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" =>
+    {
+        // XXX If we're currently parsing a header, produce an error.
+        let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
+        (Namespace::new(name), Protocol::new(send_semantics, nesting, managers, manages, decls))
+    },
+};
 
 
 //--------------------
 // manager/manages stmts
-
-// XXX ManagersStmtOpt
 
 ManagersStmt: Vec<String> = {
     "manager" <l:ManagerList> ";" => l
@@ -121,8 +117,6 @@ ManagerList: Vec<String> = {
         l
     }
 };
-
-// XXX ManagesStmtsOpt
 
 ManagesStmt: String = {
     "manages" <name:ID> ";" => name
