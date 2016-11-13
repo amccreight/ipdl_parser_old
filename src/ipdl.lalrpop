@@ -16,9 +16,24 @@ ID: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
 STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 
+//-----------------------------------------------------------------------------
+
+pub TranslationUnit: (Vec<Node>, Vec<Vec<(Namespace, NamespacedNode)>>)  = {
+    <p:Preamble> <ns:NamespaceThing+> => (p, ns)
+};
+
+
 //--------------------
 // Preamble
-pub Preamble = { (PreambleStmt ";")* };
+pub Preamble: Vec<Node> = {
+    (PreambleStmt ";")* => {
+        let mut v = Vec::new();
+        for (p, _) in <> {
+            v.push(p);
+        }
+        v
+    }
+};
 
 pub PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
 
@@ -44,8 +59,6 @@ pub CxxTypeKind: CxxTypeKind = {
 
 //--------------------
 // Namespaced stuff
-
-// NamespacedStuff from the Python parser is just NamespaceThing.
 
 NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
     "namespace" <name:ID> "{" <many_things:NamespaceThing+> "}" => {
