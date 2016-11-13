@@ -8,9 +8,18 @@ pub mod ipdl;
 pub mod ast;
 pub mod uncommenter;
 
+use std::io::prelude::*;
+use std::fs::File;
 use ast::ParserState;
 
+use std::env;
+
 fn main() {
-    println!("Output: {:?}", ipdl::parse_IncludeStmt(&ParserState::new(), "include      Whatever").unwrap());
-    println!("Output: {:?}", ipdl::parse_CxxIncludeStmt(&ParserState::new(), "include   \"hello.h\"").unwrap());
+    let f_name = env::args().nth(1).unwrap();
+    let mut f = File::open(f_name).unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    s = uncommenter::uncomment(&s);
+
+    println!("Output: {:?}", ipdl::parse_TranslationUnit(&ParserState::new(), &s).unwrap());
 }
