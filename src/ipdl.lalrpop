@@ -25,7 +25,7 @@ pub TranslationUnit: (Vec<Node>, Vec<Vec<(Namespace, NamespacedNode)>>)  = {
 
 //--------------------
 // Preamble
-pub Preamble: Vec<Node> = {
+Preamble: Vec<Node> = {
     (PreambleStmt ";")* => {
         let mut v = Vec::new();
         for (p, _) in <> {
@@ -35,23 +35,23 @@ pub Preamble: Vec<Node> = {
     }
 };
 
-pub PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
+PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
 
-pub CxxIncludeStmt: Node = {
+CxxIncludeStmt: Node = {
   "include" <file:STRING> => Node::CxxInclude(file),
 };
 
-pub IncludeStmt: Node = {
+IncludeStmt: Node = {
     "include" "protocol" <id:ID> => Node::Include(IncludeType::Protocol, id) /* resolveIncludePath etc. */,
     "include" <id:ID> => Node::Include(IncludeType::Header, id),
 };
 
-pub UsingStmt: Node = {
+UsingStmt: Node = {
     "using" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: None },
     "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(k) },
 };
 
-pub CxxTypeKind: CxxTypeKind = {
+CxxTypeKind: CxxTypeKind = {
     "class" => CxxTypeKind::Class,
     "struct" => CxxTypeKind::Struct
 };
