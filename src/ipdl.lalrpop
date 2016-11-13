@@ -77,7 +77,7 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
 };
 
 StructDecl: (Namespace, Vec<StructField>) = {
-    "struct" <name:ID> "{" <raw_fields: (StructField ";")* > => {
+    "struct" <name:ID> "{" <raw_fields: (StructField ";")* > "}" ";" => {
         let mut fields = Vec::new();
         for (f, _) in raw_fields {
             fields.push(f);
@@ -91,7 +91,7 @@ StructField: StructField = {
 };
 
 UnionDecl: (Namespace, Vec<TypeSpec>) = {
-    "union" <name:ID> "{" <raw_components: (Type ";")+ > => {
+    "union" <name:ID> "{" <raw_components: (Type ";")+ > "}" ";" => {
         let mut components = Vec::new();
         for (c, _) in raw_components {
             components.push(c);
@@ -102,7 +102,7 @@ UnionDecl: (Namespace, Vec<TypeSpec>) = {
 
 ProtocolDefn: (Namespace, Protocol) = {
     <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
-        <managers:ManagersStmt*> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" =>
+        <managers:ManagersStmt*> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" ";" =>
     {
         // XXX If we're currently parsing a header, produce an error.
         let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
