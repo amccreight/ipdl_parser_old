@@ -211,9 +211,8 @@ pub enum NamespacedNode {
 pub enum Node {
     CxxInclude(String),
     Include(IncludeType, String),
-    Namespaced { namespace: Namespace, node: NamespacedNode },
-    TypeSpec(TypeSpec),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
+    Namespaced { namespace: Namespace, node: NamespacedNode },
 }
 
 pub struct ParserState {
