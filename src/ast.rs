@@ -4,11 +4,6 @@
 
 use std::cell::Cell;
 
-#[derive(Debug)]
-pub enum IncludeType {
-    Protocol,
-    Header,
-}
 
 #[derive(Debug)]
 pub struct QualifiedId {
@@ -61,12 +56,6 @@ impl Param {
     pub fn new(type_spec: TypeSpec, name: String) -> Param {
         Param { name: name, type_spec: type_spec }
     }
-}
-
-#[derive(Debug)]
-pub enum CxxTypeKind {
-  Struct,
-  Class,
 }
 
 #[derive(Debug)]
@@ -198,6 +187,18 @@ impl Protocol {
         Protocol { send_semantics: send_semantics, nesting: nesting,
                    managers: managers, manages: manages, messages: decls }
     }
+}
+
+#[derive(Debug)]
+pub enum IncludeType {
+    Protocol,
+    Header,
+}
+
+#[derive(Debug)]
+pub enum CxxTypeKind {
+  Struct,
+  Class,
 }
 
 #[derive(Debug)]
