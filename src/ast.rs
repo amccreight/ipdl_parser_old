@@ -208,11 +208,10 @@ pub enum NamespacedNode {
 }
 
 #[derive(Debug)]
-pub enum Node {
+pub enum PreambleStmt {
     CxxInclude(String),
     Include(IncludeType, String),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
-    Namespaced { namespace: Namespace, node: NamespacedNode },
 }
 
 pub struct ParserState {

@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
-          MessageModifier, Node, Namespace, Nesting, NamespacedNode,
+          MessageModifier, PreambleStmt, Namespace, Nesting, NamespacedNode,
           ParserState, Param, Priority, Protocol, QualifiedId, SendSemantics,
           StructField, TypeSpec};
 
@@ -18,14 +18,14 @@ STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 //-----------------------------------------------------------------------------
 
-pub TranslationUnit: (Vec<Node>, Vec<Vec<(Namespace, NamespacedNode)>>)  = {
+pub TranslationUnit: (Vec<PreambleStmt>, Vec<Vec<(Namespace, NamespacedNode)>>)  = {
     <p:Preamble> <ns:NamespaceThing+> => (p, ns)
 };
 
 
 //--------------------
 // Preamble
-Preamble: Vec<Node> = {
+Preamble: Vec<PreambleStmt> = {
     (PreambleStmt ";")* => {
         let mut v = Vec::new();
         for (p, _) in <> {
@@ -37,18 +37,18 @@ Preamble: Vec<Node> = {
 
 PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
 
-CxxIncludeStmt: Node = {
-  "include" <file:STRING> => Node::CxxInclude(file),
+CxxIncludeStmt: PreambleStmt = {
+  "include" <file:STRING> => PreambleStmt::CxxInclude(file),
 };
 
-IncludeStmt: Node = {
-    "include" "protocol" <id:ID> => Node::Include(IncludeType::Protocol, id) /* resolveIncludePath etc. */,
-    "include" <id:ID> => Node::Include(IncludeType::Header, id),
+IncludeStmt: PreambleStmt = {
+    "include" "protocol" <id:ID> => PreambleStmt::Include(IncludeType::Protocol, id) /* resolveIncludePath etc. */,
+    "include" <id:ID> => PreambleStmt::Include(IncludeType::Header, id),
 };
 
-UsingStmt: Node = {
-    "using" <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: None },
-    "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => Node::Using { cxx_type: t, header: h, kind: Some(k) },
+UsingStmt: PreambleStmt = {
+    "using" <t:CxxType> "from" <h:STRING> => PreambleStmt::Using { cxx_type: t, header: h, kind: None },
+    "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => PreambleStmt::Using { cxx_type: t, header: h, kind: Some(k) },
 };
 
 CxxTypeKind: CxxTypeKind = {
