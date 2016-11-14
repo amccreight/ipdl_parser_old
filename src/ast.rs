@@ -31,19 +31,13 @@ impl QualifiedId {
 #[derive(Debug)]
 pub struct TypeSpec {
     spec: QualifiedId,
-    state: Option<String>,
     array: bool,
     nullable: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, state: None, array: false, nullable: false }
-    }
-
-    pub fn add_state(mut self, state: String) -> TypeSpec {
-        self.state = Some(state);
-        self
+        TypeSpec { spec: spec, array: false, nullable: false }
     }
 
     pub fn set_array(mut self, is_array: bool) -> TypeSpec {
