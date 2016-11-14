@@ -208,7 +208,7 @@ pub enum PreambleStmt {
 }
 
 #[derive(Debug)]
-pub enum NamespacedNode {
+pub enum TopLevelDecl {
     Struct(Vec<StructField>),
     Union(Vec<TypeSpec>),
     Protocol(Protocol),

@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
-          MessageModifier, PreambleStmt, Namespace, Nesting, NamespacedNode,
+          MessageModifier, PreambleStmt, Namespace, Nesting, TopLevelDecl,
           ParserState, Param, Priority, Protocol, QualifiedId, SendSemantics,
           StructField, TypeSpec};
 
@@ -18,7 +18,7 @@ STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 //-----------------------------------------------------------------------------
 
-pub TranslationUnit: (Vec<PreambleStmt>, Vec<Vec<(Namespace, NamespacedNode)>>)  = {
+pub TranslationUnit: (Vec<PreambleStmt>, Vec<Vec<(Namespace, TopLevelDecl)>>)  = {
     <p:Preamble> <ns:NamespaceThing+> => (p, ns)
 };
 
@@ -60,7 +60,7 @@ CxxTypeKind: CxxTypeKind = {
 //--------------------
 // Namespaced stuff
 
-NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
+NamespaceThing: Vec<(Namespace, TopLevelDecl)> = {
     "namespace" <name:ID> "{" <many_things:NamespaceThing+> "}" => {
         let mut things = Vec::new();
         for old_things in many_things {
@@ -71,9 +71,9 @@ NamespaceThing: Vec<(Namespace, NamespacedNode)> = {
         }
         things
     },
-    <s:StructDecl> => vec![(s.0, NamespacedNode::Struct(s.1))],
-    <u:UnionDecl> => vec![(u.0, NamespacedNode::Union(u.1))],
-    <p:ProtocolDefn> => vec![(p.0, NamespacedNode::Protocol(p.1))],
+    <s:StructDecl> => vec![(s.0, TopLevelDecl::Struct(s.1))],
+    <u:UnionDecl> => vec![(u.0, TopLevelDecl::Union(u.1))],
+    <p:ProtocolDefn> => vec![(p.0, TopLevelDecl::Protocol(p.1))],
 };
 
 StructDecl: (Namespace, Vec<StructField>) = {
