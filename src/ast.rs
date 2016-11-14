@@ -215,6 +215,12 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
+#[derive(Debug)]
+pub struct TranslationUnit {
+    pub preamble: Vec<PreambleStmt>,
+    pub declarations: Vec<(Namespace, TopLevelDecl)>,
+}
+
 pub struct ParserState {
     pub direction: Cell<Option<Direction>>,
 }

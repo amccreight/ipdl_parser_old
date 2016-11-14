@@ -5,7 +5,7 @@
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
           MessageModifier, PreambleStmt, Namespace, Nesting, TopLevelDecl,
           ParserState, Param, Priority, Protocol, QualifiedId, SendSemantics,
-          StructField, TypeSpec};
+          StructField, TranslationUnit, TypeSpec};
 
 grammar(parser_state: &ParserState);
 
@@ -18,8 +18,14 @@ STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 //-----------------------------------------------------------------------------
 
-pub TranslationUnit: (Vec<PreambleStmt>, Vec<Vec<(Namespace, TopLevelDecl)>>)  = {
-    <p:Preamble> <ns:NamespaceThing+> => (p, ns)
+pub TranslationUnit: TranslationUnit = {
+    <p:Preamble> <ns:NamespaceThing+> => {
+        let mut decls = Vec::new();
+        for mut d in ns {
+            decls.append(&mut d)
+        }
+        TranslationUnit { preamble: p, declarations: decls }
+    }
 };
 
 
