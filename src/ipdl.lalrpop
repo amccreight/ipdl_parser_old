@@ -264,17 +264,12 @@ Type: TypeSpec = {
     <is_nullable: "nullable"?> <t:BasicType> => t.set_nullable(is_nullable.is_some())
 };
 
+// ID == CxxType; we forbid qnames here,
+// in favor of the |using| declaration
 BasicType: TypeSpec = {
-    ScalarType,
-    <t:ScalarType> "[" "]" => t.set_array(true)
-};
-
-ScalarType: TypeSpec = {
-    <id:CxxID> => {
-        // ID == CxxType; we forbid qnames here,
-        // in favor of the |using| declaration
-        TypeSpec::new(QualifiedId::new(id))
-    }
+    <id:CxxID> <is_array: ("[" "]")?> => {
+        TypeSpec::new(QualifiedId::new(id)).set_array(is_array.is_some())
+    },
 };
 
 
