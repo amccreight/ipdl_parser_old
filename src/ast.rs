@@ -201,17 +201,17 @@ impl Protocol {
 }
 
 #[derive(Debug)]
-pub enum NamespacedNode {
-    Struct(Vec<StructField>),
-    Union(Vec<TypeSpec>),
-    Protocol(Protocol),
-}
-
-#[derive(Debug)]
 pub enum PreambleStmt {
     CxxInclude(String),
     Include(IncludeType, String),
     Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
+}
+
+#[derive(Debug)]
+pub enum NamespacedNode {
+    Struct(Vec<StructField>),
+    Union(Vec<TypeSpec>),
+    Protocol(Protocol),
 }
 
 pub struct ParserState {
