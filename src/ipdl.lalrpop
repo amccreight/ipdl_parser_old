@@ -108,7 +108,7 @@ UnionDecl: (Namespace, Vec<TypeSpec>) = {
 
 ProtocolDefn: (Namespace, Protocol) = {
     <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
-        <managers:ManagersStmt*> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" ";" =>
+        <managers:ManagersStmt> <manages:ManagesStmt?> <decls:MessageDeclThing*> "}" ";" =>
     {
         // XXX If we're currently parsing a header, produce an error.
         let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
@@ -121,7 +121,8 @@ ProtocolDefn: (Namespace, Protocol) = {
 // manager/manages stmts
 
 ManagersStmt: Vec<String> = {
-    "manager" <l:ManagerList> ";" => l
+    "manager" <l:ManagerList> ";" => l,
+    => Vec::new(),
 };
 
 ManagerList: Vec<String> = {
@@ -134,7 +135,7 @@ ManagerList: Vec<String> = {
 };
 
 ManagesStmt: String = {
-    "manages" <name:ID> ";" => name
+    "manages" <name:ID> ";" => name,
 };
 
 
