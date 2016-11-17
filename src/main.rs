@@ -2,13 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-pub mod ipdl;
 pub mod ast;
+pub mod ipdl;
+pub mod parser_state;
 pub mod uncommenter;
 
 use std::io::prelude::*;
 use std::fs::File;
-use ast::ParserState;
+use parser_state::ParserState;
 
 use std::env;
 

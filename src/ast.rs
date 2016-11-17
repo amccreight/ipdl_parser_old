@@ -2,9 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::cell::Cell;
-
-
 #[derive(Debug)]
 pub struct QualifiedId {
     base_id: String,
@@ -219,14 +216,4 @@ pub enum TopLevelDecl {
 pub struct TranslationUnit {
     pub preamble: Vec<PreambleStmt>,
     pub declarations: Vec<(Namespace, TopLevelDecl)>,
-}
-
-pub struct ParserState {
-    pub direction: Cell<Option<Direction>>,
-}
-
-impl ParserState {
-    pub fn new() -> ParserState {
-        ParserState { direction: Cell::new(None) }
-    }
 }

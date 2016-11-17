@@ -3,9 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
-          MessageModifier, PreambleStmt, Namespace, Nesting, TopLevelDecl,
-          ParserState, Param, Priority, Protocol, QualifiedId, SendSemantics,
-          StructField, TranslationUnit, TypeSpec};
+          MessageModifier, PreambleStmt, Namespace, Nesting,
+          TopLevelDecl, Param, Priority, Protocol, QualifiedId,
+          SendSemantics, StructField, TranslationUnit, TypeSpec};
+
+use parser_state::ParserState;
 
 grammar(parser_state: &ParserState);
 
