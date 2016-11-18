@@ -38,6 +38,19 @@ pub struct ParserState {
     pub direction: Cell<Option<Direction>>,
 }
 
+fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option<PathBuf> {
+    // XXX The Python parser also checks '' for some reason.
+    for d in include_dirs {
+        let mut p = d.clone();
+        p.push(file_path);
+
+        if let Ok(pb) = p.canonicalize() {
+            return Some(pb)
+        }
+    }
+    return None
+}
+
 impl ParserState {
     pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType) -> ParserState {
         ParserState {
@@ -48,16 +61,7 @@ impl ParserState {
     }
 
     pub fn resolve_include_path(&self, file_path: &Path) -> Option<PathBuf> {
-        // XXX The Python parser also checks '' for some reason.
-        for d in &self.include_dirs {
-            let mut p = d.clone();
-            p.push(file_path);
-
-            if let Ok(pb) = p.canonicalize() {
-                return Some(pb)
-            }
-        }
-        return None
+        resolve_include_path(&self.include_dirs, file_path)
     }
 }
 
