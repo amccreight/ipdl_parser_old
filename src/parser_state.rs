@@ -3,7 +3,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::cell::Cell;
-use ast::Direction;
+
+use ast::{Direction, Protocol, StructField, TypeSpec};
 
 pub struct ParserState {
     pub direction: Cell<Option<Direction>>,
@@ -13,4 +14,10 @@ impl ParserState {
     pub fn new() -> ParserState {
         ParserState { direction: Cell::new(None) }
     }
+}
+
+pub enum TopLevelDecl {
+    Struct(Vec<StructField>),
+    Union(Vec<TypeSpec>),
+    Protocol(Protocol),
 }

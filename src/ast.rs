@@ -206,14 +206,14 @@ pub enum PreambleStmt {
 }
 
 #[derive(Debug)]
-pub enum TopLevelDecl {
+pub enum StructOrUnion {
     Struct(Vec<StructField>),
     Union(Vec<TypeSpec>),
-    Protocol(Protocol),
 }
 
 #[derive(Debug)]
 pub struct TranslationUnit {
     pub preamble: Vec<PreambleStmt>,
-    pub declarations: Vec<(Namespace, TopLevelDecl)>,
+    pub structs_and_unions: Vec<(Namespace, StructOrUnion)>,
+    pub protocol: Option<(Namespace, Protocol)>,
 }

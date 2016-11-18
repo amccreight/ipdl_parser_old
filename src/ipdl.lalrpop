@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
-          MessageModifier, PreambleStmt, Namespace, Nesting,
-          TopLevelDecl, Param, Priority, Protocol, QualifiedId,
-          SendSemantics, StructField, TranslationUnit, TypeSpec};
+          MessageModifier, PreambleStmt, Namespace, Nesting, Param,
+          Priority, Protocol, QualifiedId, SendSemantics, StructField,
+          StructOrUnion, TranslationUnit, TypeSpec};
 
-use parser_state::ParserState;
+use parser_state::{TopLevelDecl, ParserState};
 
 grammar(parser_state: &ParserState);
 
@@ -22,11 +22,31 @@ STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 pub TranslationUnit: TranslationUnit = {
     <p:Preamble> <ns:NamespaceThing+> => {
-        let mut decls = Vec::new();
-        for mut d in ns {
-            decls.append(&mut d)
+        let mut protocol = None;
+        let mut structs_and_unions = Vec::new();
+
+        for nts in ns {
+            for (ns, d) in nts {
+                match d {
+                    TopLevelDecl::Struct(s) => {
+                        structs_and_unions.push((ns, StructOrUnion::Struct(s)));
+                    },
+                    TopLevelDecl::Union(u) => {
+                        structs_and_unions.push((ns, StructOrUnion::Union(u)));
+                    },
+                    TopLevelDecl::Protocol(p) => {
+                        // XXX Throw a proper parsing error.
+                        if protocol.is_some() {
+                            panic!("Only one protocol definition per file.");
+                        }
+                        protocol = Some((ns, p));
+                    },
+                }
+            }
         }
-        TranslationUnit { preamble: p, declarations: decls }
+
+        TranslationUnit { preamble: p, structs_and_unions: structs_and_unions,
+                          protocol: protocol }
     }
 };
 
