@@ -9,7 +9,7 @@ use ast::{Compress, CxxTypeKind, Direction, MessageDecl,
           Protocol, QualifiedId, SendSemantics, StructField,
           StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
 
-use parser_state::{TopLevelDecl, ParserState, PreambleStmt};
+use parser_state::{FileType, TopLevelDecl, ParserState, PreambleStmt};
 
 grammar(parser_state: &ParserState);
 
@@ -164,7 +164,11 @@ ProtocolDefn: (Namespace, Protocol) = {
     <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
         <managers:ManagersStmtOpt> <manages:ManagesStmt?> <decls:MessageDeclThing*> "}" ";" =>
     {
-        // XXX If we're currently parsing a header, produce an error.
+
+        if let FileType::Header = parser_state.file_type {
+            panic!("Can't define a protocol in a header. Do it in a protocol spec instead.");
+        }
+
         let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
         (Namespace::new(name), Protocol::new(send_semantics, nesting, managers, manages, decls))
     },

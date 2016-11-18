@@ -10,7 +10,7 @@ pub mod uncommenter;
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
-use parser_state::ParserState;
+use parser_state::{FileType, ParserState};
 
 use std::env;
 
@@ -26,6 +26,8 @@ fn main() {
     f.read_to_string(&mut s).unwrap();
     s = uncommenter::uncomment(&s);
 
-    let parser_state = ParserState::new(vec![include_path]);
+    // XXX Should derive |ft| based on the file name.
+    let ft = FileType::Protocol;
+    let parser_state = ParserState::new(vec![include_path], ft);
     println!("Output: {:?}", ipdl::parse_TranslationUnit(&parser_state, &s).unwrap());
 }

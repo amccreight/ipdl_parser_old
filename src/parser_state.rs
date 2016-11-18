@@ -7,14 +7,24 @@ use std::path::{Path, PathBuf};
 
 use ast::{Direction, Protocol, StructField, TypeSpec, UsingStmt};
 
+pub enum FileType {
+    Protocol,
+    Header,
+}
+
 pub struct ParserState {
     pub include_dirs: Vec<PathBuf>,
+    pub file_type: FileType,
     pub direction: Cell<Option<Direction>>,
 }
 
 impl ParserState {
-    pub fn new(include_dirs: Vec<PathBuf>) -> ParserState {
-        ParserState { include_dirs: include_dirs, direction: Cell::new(None) }
+    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType) -> ParserState {
+        ParserState {
+            include_dirs: include_dirs,
+            file_type: file_type,
+            direction: Cell::new(None),
+        }
     }
 
     pub fn resolve_include_path(&self, file_path: &Path) -> Option<PathBuf> {
