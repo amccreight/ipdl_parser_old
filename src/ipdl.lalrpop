@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use std::path::Path;
+
 use ast::{Compress, CxxTypeKind, Direction, MessageDecl,
           MessageModifier, Namespace, Nesting, Param, Priority,
           Protocol, QualifiedId, SendSemantics, StructField,
@@ -93,7 +95,10 @@ IncludeStmt: PreambleStmt = {
             file.push_str("h");
         }
 
-        /* resolveIncludePath etc. */
+        let path = match parser_state.resolve_include_path(Path::new(&file)) {
+            Some(f) => f,
+            None => panic!("Can't locate include file {}", file),
+        };
 
         PreambleStmt::Include(file)
     }

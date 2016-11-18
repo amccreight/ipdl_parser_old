@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::cell::Cell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ast::{Direction, Protocol, StructField, TypeSpec, UsingStmt};
 
@@ -15,6 +15,19 @@ pub struct ParserState {
 impl ParserState {
     pub fn new(include_dirs: Vec<PathBuf>) -> ParserState {
         ParserState { include_dirs: include_dirs, direction: Cell::new(None) }
+    }
+
+    pub fn resolve_include_path(&self, file_path: &Path) -> Option<PathBuf> {
+        // XXX The Python parser also checks '' for some reason.
+        for d in &self.include_dirs {
+            let mut p = d.clone();
+            p.push(file_path);
+
+            if let Ok(pb) = p.canonicalize() {
+                return Some(pb)
+            }
+        }
+        return None
     }
 }
 
