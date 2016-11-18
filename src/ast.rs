@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 
 #[derive(Debug)]
@@ -232,7 +232,7 @@ impl FileType {
 pub struct TranslationUnit {
     pub namespace: Namespace,
     pub file_type: FileType,
-    // XXX file_name
+    pub file_name: PathBuf,
     pub cxx_includes: Vec<String>,
     pub includes: Vec<String>,
     // XXX builtin_using

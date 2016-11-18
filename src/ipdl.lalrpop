@@ -76,6 +76,7 @@ pub TranslationUnit: TranslationUnit = {
         TranslationUnit {
             namespace: namespace,
             file_type: parser_state.file_type.clone(),
+            file_name: parser_state.file_name.clone(),
             cxx_includes: cxx_includes,
             includes: includes,
             using: using,

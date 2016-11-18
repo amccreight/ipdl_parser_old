@@ -17,6 +17,7 @@ use uncommenter::uncomment;
 pub struct ParserState {
     pub include_dirs: Vec<PathBuf>,
     pub file_type: FileType,
+    pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
 }
 
@@ -34,10 +35,11 @@ fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option
 }
 
 impl ParserState {
-    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType) -> ParserState {
+    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType, file_name: &Path) -> ParserState {
         ParserState {
             include_dirs: include_dirs,
             file_type: file_type,
+            file_name: PathBuf::from(file_name),
             direction: Cell::new(None),
         }
     }
@@ -70,7 +72,7 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> TranslationU
     f.read_to_string(&mut s).unwrap();
     s = uncomment(&s);
 
-    let parser_state = ParserState::new(include_dirs.clone(), file_type);
+    let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name);
     parse_TranslationUnit(&parser_state, &s).unwrap()
 }
 
