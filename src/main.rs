@@ -16,7 +16,7 @@ fn main() {
         panic!("Expected two arguments, an include path and a file name.");
     }
 
-    let include_path = PathBuf::from(&args[1]);
-    let file_name = &args[2];
-    println!("Output: {:?}", parser::parse(&vec![include_path], file_name));
+    let include_dirs = vec![PathBuf::from(&args[1])];
+    let file_name = PathBuf::from(&args[2]);
+    println!("Output: {:?}", parser::parse(&include_dirs, &file_name).len());
 }

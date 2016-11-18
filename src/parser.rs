@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::collections::{HashMap, HashSet};
 use std::cell::Cell;
 use std::io::prelude::*;
 use std::fs::File;
@@ -77,12 +78,11 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
-pub fn parse(include_dirs: &Vec<PathBuf>, file_name: &str) -> TranslationUnit {
+pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> TranslationUnit {
 
     // The file type and name are later enforced by the type checker.
     // This is just a hint to the parser.
-    let file_path = Path::new(file_name);
-    let file_type = FileType::from_file_path(&file_path).unwrap();
+    let file_type = FileType::from_file_path(&file_name).unwrap();
 
     let mut f = File::open(file_name).unwrap();
     let mut s = String::new();
@@ -91,4 +91,34 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_name: &str) -> TranslationUnit {
 
     let parser_state = ParserState::new(include_dirs.clone(), file_type);
     parse_TranslationUnit(&parser_state, &s).unwrap()
+}
+
+
+pub fn parse(include_dirs: &Vec<PathBuf>, file_name: &Path) -> HashMap<PathBuf, TranslationUnit> {
+    let mut work_list : HashSet<PathBuf> = HashSet::new();
+    let mut parsed : HashMap<PathBuf, TranslationUnit> = HashMap::new();
+
+    work_list.insert(PathBuf::from(file_name));
+
+    while !work_list.is_empty() {
+        let mut new_work_list = HashSet::new();
+        for curr_file in &work_list {
+            println!("Parsing file: {:?}", curr_file);
+            let tu = parse_file(&include_dirs, curr_file);
+
+            for i in &tu.includes {
+                let p = Path::new(&i);
+                if parsed.contains_key(p) || work_list.contains(p) {
+                    continue;
+                }
+                new_work_list.insert(resolve_include_path(include_dirs, &p).unwrap());
+            }
+
+            parsed.insert(curr_file.clone(), tu);
+        }
+
+        work_list = new_work_list;
+    }
+
+    parsed
 }
