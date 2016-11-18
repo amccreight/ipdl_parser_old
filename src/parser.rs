@@ -98,6 +98,9 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<P
     let mut work_list : HashSet<PathBuf> = HashSet::new();
     let mut parsed : HashMap<PathBuf, TranslationUnit> = HashMap::new();
 
+    // XXX For error reporting purposes, we should track the include
+    // context of every file in the work list.
+
     for f in file_names {
         work_list.insert(f);
     }
