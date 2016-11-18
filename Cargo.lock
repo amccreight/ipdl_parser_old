@@ -2,6 +2,7 @@
 name = "ipdl_parser"
 version = "0.1.0"
 dependencies = [
+ "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop-util 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -61,6 +62,11 @@ dependencies = [
 [[package]]
 name = "fixedbitset"
 version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "getopts"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -243,6 +249,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum diff 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e48977eec6d3b7707462c2dc2e1363ad91b5dd822cf942537ccdc2085dc87587"
 "checksum docopt 0.6.86 (registry+https://github.com/rust-lang/crates.io-index)" = "4a7ef30445607f6fc8720f0a0a2c7442284b629cf0d049286860fae23e71c4d9"
 "checksum fixedbitset 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "88c3c33fc4c00db33f5174eb98aea809c4c007db0b71351d810a7e094ea3b64d"
+"checksum getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "d9047cfbd08a437050b363d35ef160452c5fe8ea5187ae0a624708c91581d685"
 "checksum itertools 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)" = "16b73f1c685cfd8ff8d75698ed87e6188cd09944b30c0863d45c2c3699d1da0c"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum lalrpop 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "69020f40548438f3eb03204574dc5d3a82336e7b33a56d27be0248c011699e12"

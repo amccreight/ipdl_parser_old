@@ -9,3 +9,4 @@ lalrpop = "0.12.1"
 
 [dependencies]
 lalrpop-util = "0.12.1"
+getopts = "0.2.14"
