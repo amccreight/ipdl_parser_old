@@ -94,11 +94,13 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> TranslationU
 }
 
 
-pub fn parse(include_dirs: &Vec<PathBuf>, file_name: &Path) -> HashMap<PathBuf, TranslationUnit> {
+pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<PathBuf, TranslationUnit> {
     let mut work_list : HashSet<PathBuf> = HashSet::new();
     let mut parsed : HashMap<PathBuf, TranslationUnit> = HashMap::new();
 
-    work_list.insert(PathBuf::from(file_name));
+    for f in file_names {
+        work_list.insert(f);
+    }
 
     while !work_list.is_empty() {
         let mut new_work_list = HashSet::new();

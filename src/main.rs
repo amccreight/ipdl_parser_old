@@ -35,8 +35,10 @@ fn main() {
         include_dirs.push(PathBuf::from(i))
     }
 
-    // XXX Handle more than one file being specified.
-    let file_name = PathBuf::from(&matches.free[0]);
+    let mut file_names = Vec::new();
+    for f in matches.free {
+        file_names.push(PathBuf::from(f));
+    }
 
-    println!("Output: {:?}", parser::parse(&include_dirs, &file_name).len());
+    println!("Output: {:?}", parser::parse(&include_dirs, file_names).len());
 }
