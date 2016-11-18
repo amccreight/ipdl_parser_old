@@ -20,5 +20,6 @@ fn main() {
     f.read_to_string(&mut s).unwrap();
     s = uncommenter::uncomment(&s);
 
-    println!("Output: {:?}", ipdl::parse_TranslationUnit(&ParserState::new(), &s).unwrap());
+    let parser_state = ParserState::new(Vec::new());
+    println!("Output: {:?}", ipdl::parse_TranslationUnit(&parser_state, &s).unwrap());
 }

@@ -3,16 +3,18 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::cell::Cell;
+use std::path::PathBuf;
 
 use ast::{Direction, Protocol, StructField, TypeSpec, UsingStmt};
 
 pub struct ParserState {
+    pub include_dirs: Vec<PathBuf>,
     pub direction: Cell<Option<Direction>>,
 }
 
 impl ParserState {
-    pub fn new() -> ParserState {
-        ParserState { direction: Cell::new(None) }
+    pub fn new(include_dirs: Vec<PathBuf>) -> ParserState {
+        ParserState { include_dirs: include_dirs, direction: Cell::new(None) }
     }
 }
 
