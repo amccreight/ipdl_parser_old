@@ -109,11 +109,11 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<P
             let tu = parse_file(&include_dirs, curr_file);
 
             for i in &tu.includes {
-                let p = Path::new(&i);
-                if parsed.contains_key(p) || work_list.contains(p) {
+                let p = resolve_include_path(include_dirs, Path::new(&i)).unwrap();
+                if parsed.contains_key(&p) || work_list.contains(&p) {
                     continue;
                 }
-                new_work_list.insert(resolve_include_path(include_dirs, &p).unwrap());
+                new_work_list.insert(p);
             }
 
             parsed.insert(curr_file.clone(), tu);
