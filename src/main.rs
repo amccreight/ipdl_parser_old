@@ -4,7 +4,7 @@
 
 pub mod ast;
 pub mod ipdl;
-pub mod parser_state;
+pub mod parser;
 pub mod uncommenter;
 
 use std::path::PathBuf;
@@ -18,5 +18,5 @@ fn main() {
 
     let include_path = PathBuf::from(&args[1]);
     let file_name = &args[2];
-    println!("Output: {:?}", parser_state::parse(&vec![include_path], file_name));
+    println!("Output: {:?}", parser::parse(&vec![include_path], file_name));
 }
