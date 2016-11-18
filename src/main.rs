@@ -7,11 +7,7 @@ pub mod ipdl;
 pub mod parser_state;
 pub mod uncommenter;
 
-use std::io::prelude::*;
-use std::fs::File;
 use std::path::PathBuf;
-use parser_state::{FileType, ParserState};
-
 use std::env;
 
 fn main() {
@@ -21,13 +17,6 @@ fn main() {
     }
 
     let include_path = PathBuf::from(&args[1]);
-    let mut f = File::open(&args[2]).unwrap();
-    let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
-    s = uncommenter::uncomment(&s);
-
-    // XXX Should derive |ft| based on the file name.
-    let ft = FileType::Protocol;
-    let parser_state = ParserState::new(vec![include_path], ft);
-    println!("Output: {:?}", ipdl::parse_TranslationUnit(&parser_state, &s).unwrap());
+    let file_name = &args[2];
+    println!("Output: {:?}", parser_state::parse(&vec![include_path], file_name));
 }

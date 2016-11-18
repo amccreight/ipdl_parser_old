@@ -3,14 +3,34 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::cell::Cell;
+use std::io::prelude::*;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use ast::{Direction, Protocol, StructField, TypeSpec, UsingStmt};
+use ast::{Direction, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt};
+use ipdl::parse_TranslationUnit;
+
+use uncommenter::uncomment;
 
 pub enum FileType {
     Protocol,
     Header,
 }
+
+impl FileType {
+    pub fn from_file_path(file_path: &Path) -> Option<FileType> {
+        if let Some(e) = file_path.extension() {
+            if e == ".ipdlh" {
+                Some(FileType::Header)
+            } else {
+                Some(FileType::Protocol)
+            }
+        } else {
+            None
+        }
+    }
+}
+
 
 pub struct ParserState {
     pub include_dirs: Vec<PathBuf>,
@@ -51,4 +71,20 @@ pub enum TopLevelDecl {
     Struct(Vec<StructField>),
     Union(Vec<TypeSpec>),
     Protocol(Protocol),
+}
+
+pub fn parse(include_dirs: &Vec<PathBuf>, file_name: &str) -> TranslationUnit {
+
+    // The file type and name are later enforced by the type checker.
+    // This is just a hint to the parser.
+    let file_path = Path::new(file_name);
+    let file_type = FileType::from_file_path(&file_path).unwrap();
+
+    let mut f = File::open(file_name).unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    s = uncomment(&s);
+
+    let parser_state = ParserState::new(include_dirs.clone(), file_type);
+    parse_TranslationUnit(&parser_state, &s).unwrap()
 }
