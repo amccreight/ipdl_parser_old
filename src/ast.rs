@@ -187,12 +187,6 @@ impl Protocol {
 }
 
 #[derive(Debug)]
-pub enum IncludeType {
-    Protocol,
-    Header,
-}
-
-#[derive(Debug)]
 pub enum CxxTypeKind {
   Struct,
   Class,
@@ -216,7 +210,7 @@ pub struct TranslationUnit {
     // XXX file_type
     // XXX file_name
     pub cxx_includes: Vec<String>,
-    pub includes: Vec<(IncludeType, String)>,
+    pub includes: Vec<String>,
     // XXX builtin_using
     pub using: Vec<UsingStmt>,
     pub structs_and_unions: Vec<(Namespace, StructOrUnion)>,

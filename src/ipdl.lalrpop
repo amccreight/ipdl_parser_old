@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
+use ast::{Compress, CxxTypeKind, Direction, MessageDecl,
           MessageModifier, Namespace, Nesting, Param, Priority,
           Protocol, QualifiedId, SendSemantics, StructField,
           StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
@@ -28,7 +28,7 @@ pub TranslationUnit: TranslationUnit = {
         for p in ps {
             match p {
                 PreambleStmt::CxxInclude(f) => cxx_includes.push(f),
-                PreambleStmt::Include(it, f) => includes.push((it, f)),
+                PreambleStmt::Include(f) => includes.push(f),
                 PreambleStmt::Using(u) => using.push(u),
             }
         }
@@ -87,9 +87,15 @@ CxxIncludeStmt: PreambleStmt = {
 
 IncludeStmt: PreambleStmt = {
     "include" <p:"protocol"?> <id:ID> => {
+        let mut file = id;
+        file.push_str(".ipdl");
+        if !p.is_some() {
+            file.push_str("h");
+        }
+
         /* resolveIncludePath etc. */
-        let it = if p.is_some() { IncludeType::Protocol } else { IncludeType::Header};
-        PreambleStmt::Include(it, id)
+
+        PreambleStmt::Include(file)
     }
 };
 

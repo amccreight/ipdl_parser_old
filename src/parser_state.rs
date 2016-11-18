@@ -4,8 +4,7 @@
 
 use std::cell::Cell;
 
-use ast::{Direction, IncludeType, Protocol, StructField, TypeSpec,
-          UsingStmt};
+use ast::{Direction, Protocol, StructField, TypeSpec, UsingStmt};
 
 pub struct ParserState {
     pub direction: Cell<Option<Direction>>,
@@ -19,7 +18,7 @@ impl ParserState {
 
 pub enum PreambleStmt {
     CxxInclude(String),
-    Include(IncludeType, String),
+    Include(String),
     Using(UsingStmt),
 }
 
