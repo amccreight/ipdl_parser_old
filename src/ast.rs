@@ -2,6 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::path::Path;
+
+
 #[derive(Debug)]
 pub struct QualifiedId {
     base_id: String,
@@ -67,7 +70,7 @@ impl StructField {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Namespace {
     name: String,
     namespaces: Vec<String>,
@@ -205,9 +208,30 @@ pub enum StructOrUnion {
     Union(Vec<TypeSpec>),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum FileType {
+    Protocol,
+    Header,
+}
+
+impl FileType {
+    pub fn from_file_path(file_path: &Path) -> Option<FileType> {
+        if let Some(e) = file_path.extension() {
+            if e == "ipdlh" {
+                Some(FileType::Header)
+            } else {
+                Some(FileType::Protocol)
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct TranslationUnit {
-    // XXX file_type
+    pub namespace: Namespace,
+    pub file_type: FileType,
     // XXX file_name
     pub cxx_includes: Vec<String>,
     pub includes: Vec<String>,

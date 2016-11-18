@@ -8,29 +8,10 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use ast::{Direction, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt};
+use ast::{Direction, FileType, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt};
 use ipdl::parse_TranslationUnit;
 
 use uncommenter::uncomment;
-
-pub enum FileType {
-    Protocol,
-    Header,
-}
-
-impl FileType {
-    pub fn from_file_path(file_path: &Path) -> Option<FileType> {
-        if let Some(e) = file_path.extension() {
-            if e == ".ipdlh" {
-                Some(FileType::Header)
-            } else {
-                Some(FileType::Protocol)
-            }
-        } else {
-            None
-        }
-    }
-}
 
 
 pub struct ParserState {

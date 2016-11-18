@@ -4,12 +4,12 @@
 
 use std::path::Path;
 
-use ast::{Compress, CxxTypeKind, Direction, MessageDecl,
+use ast::{Compress, CxxTypeKind, Direction, FileType, MessageDecl,
           MessageModifier, Namespace, Nesting, Param, Priority,
           Protocol, QualifiedId, SendSemantics, StructField,
           StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
 
-use parser::{FileType, TopLevelDecl, ParserState, PreambleStmt};
+use parser::{TopLevelDecl, ParserState, PreambleStmt};
 
 grammar(parser_state: &ParserState);
 
@@ -58,7 +58,24 @@ pub TranslationUnit: TranslationUnit = {
             }
         }
 
+        assert!(protocol.is_none() || parser_state.file_type == FileType::Protocol);
+        assert!(protocol.is_some() || parser_state.file_type == FileType::Header);
+
+        // The "canonical" namespace of the translation unit, ie what
+        // it's considered to be in for the purposes of C++:
+        // |#include "foo/bar/TU.h"|
+        let namespace = match &protocol {
+            &Some(ref p) => p.0.clone(),
+            &None =>
+                // There's not really a canonical "thing" in headers. So
+                // somewhat arbitrarily use the namespace of the last
+                // interesting thing that was declared.
+                structs_and_unions.last().unwrap().0.clone(),
+        };
+
         TranslationUnit {
+            namespace: namespace,
+            file_type: parser_state.file_type.clone(),
             cxx_includes: cxx_includes,
             includes: includes,
             using: using,
