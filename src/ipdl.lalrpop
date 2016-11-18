@@ -86,8 +86,11 @@ CxxIncludeStmt: PreambleStmt = {
 };
 
 IncludeStmt: PreambleStmt = {
-    "include" "protocol" <id:ID> => PreambleStmt::Include(IncludeType::Protocol, id) /* resolveIncludePath etc. */,
-    "include" <id:ID> => PreambleStmt::Include(IncludeType::Header, id),
+    "include" <p:"protocol"?> <id:ID> => {
+        /* resolveIncludePath etc. */
+        let it = if p.is_some() { IncludeType::Protocol } else { IncludeType::Header};
+        PreambleStmt::Include(it, id)
+    }
 };
 
 UsingStmt: PreambleStmt = {
