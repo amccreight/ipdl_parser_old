@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use ast::{Compress, CxxTypeKind, Direction, IncludeType, MessageDecl,
-          MessageModifier, PreambleStmt, Namespace, Nesting, Param,
-          Priority, Protocol, QualifiedId, SendSemantics, StructField,
-          StructOrUnion, TranslationUnit, TypeSpec};
+          MessageModifier, Namespace, Nesting, Param, Priority,
+          Protocol, QualifiedId, SendSemantics, StructField,
+          StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
 
-use parser_state::{TopLevelDecl, ParserState};
+use parser_state::{TopLevelDecl, ParserState, PreambleStmt};
 
 grammar(parser_state: &ParserState);
 
@@ -21,7 +21,18 @@ STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 //-----------------------------------------------------------------------------
 
 pub TranslationUnit: TranslationUnit = {
-    <p:Preamble> <ns:NamespaceThing+> => {
+    <ps:Preamble> <ns:NamespaceThing+> => {
+        let mut cxx_includes = Vec::new();
+        let mut includes = Vec::new();
+        let mut using = Vec::new();
+        for p in ps {
+            match p {
+                PreambleStmt::CxxInclude(f) => cxx_includes.push(f),
+                PreambleStmt::Include(it, f) => includes.push((it, f)),
+                PreambleStmt::Using(u) => using.push(u),
+            }
+        }
+
         let mut protocol = None;
         let mut structs_and_unions = Vec::new();
 
@@ -45,8 +56,13 @@ pub TranslationUnit: TranslationUnit = {
             }
         }
 
-        TranslationUnit { preamble: p, structs_and_unions: structs_and_unions,
-                          protocol: protocol }
+        TranslationUnit {
+            cxx_includes: cxx_includes,
+            includes: includes,
+            using: using,
+            structs_and_unions: structs_and_unions,
+            protocol: protocol
+        }
     }
 };
 
@@ -75,8 +91,10 @@ IncludeStmt: PreambleStmt = {
 };
 
 UsingStmt: PreambleStmt = {
-    "using" <t:CxxType> "from" <h:STRING> => PreambleStmt::Using { cxx_type: t, header: h, kind: None },
-    "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => PreambleStmt::Using { cxx_type: t, header: h, kind: Some(k) },
+    "using" <t:CxxType> "from" <h:STRING> => PreambleStmt::Using(UsingStmt { cxx_type: t, header: h, kind: None }),
+    "using" <k:CxxTypeKind> <t:CxxType> "from" <h:STRING> => PreambleStmt::Using(UsingStmt { cxx_type: t,
+                                                                                             header: h,
+                                                                                             kind: Some(k) }),
 };
 
 CxxTypeKind: CxxTypeKind = {

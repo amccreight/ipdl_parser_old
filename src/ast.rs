@@ -199,10 +199,10 @@ pub enum CxxTypeKind {
 }
 
 #[derive(Debug)]
-pub enum PreambleStmt {
-    CxxInclude(String),
-    Include(IncludeType, String),
-    Using { cxx_type: TypeSpec, header: String, kind: Option<CxxTypeKind> },
+pub struct UsingStmt {
+    pub cxx_type: TypeSpec,
+    pub header: String,
+    pub kind: Option<CxxTypeKind>,
 }
 
 #[derive(Debug)]
@@ -213,7 +213,12 @@ pub enum StructOrUnion {
 
 #[derive(Debug)]
 pub struct TranslationUnit {
-    pub preamble: Vec<PreambleStmt>,
+    // XXX file_type
+    // XXX file_name
+    pub cxx_includes: Vec<String>,
+    pub includes: Vec<(IncludeType, String)>,
+    // XXX builtin_using
+    pub using: Vec<UsingStmt>,
     pub structs_and_unions: Vec<(Namespace, StructOrUnion)>,
     pub protocol: Option<(Namespace, Protocol)>,
 }
