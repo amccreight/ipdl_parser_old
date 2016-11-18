@@ -57,7 +57,7 @@ pub fn uncomment(text: &str) -> String {
                 if c == '/' {
                     state = State::Default;
                 } else {
-                    state = State::EndingMultilineComment;
+                    state = State::InMultilineComment;
                 }
             },
         }
@@ -80,4 +80,10 @@ fn basic_tests() {
 
     // Newline right before fake end of multiline comment.
     assert_eq!(uncomment("/**\n*/"), "   \n  ");
+
+    // After we get a * in the middle of a multiline comment, that is
+    // not followed by a /, we need to reset to the normal
+    // in-multiline-comment state. Funnily enough, this is necessary
+    // to correctly parse the multiline comment version of the MPL2.
+    assert_eq!(uncomment("/**x/y*/"), "        ");
 }
