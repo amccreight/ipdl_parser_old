@@ -174,13 +174,13 @@ pub struct Protocol {
     send_semantics: SendSemantics,
     nesting: Nesting,
     managers: Vec<String>,
-    manages: Option<String>,
+    manages: Vec<String>,
     messages: Vec<MessageDecl>,
 }
 
 impl Protocol {
     pub fn new(send_semantics: SendSemantics, nesting: Nesting,
-               managers: Vec<String>, manages: Option<String>, decls: Vec<MessageDecl>) -> Protocol {
+               managers: Vec<String>, manages: Vec<String>, decls: Vec<MessageDecl>) -> Protocol {
         Protocol { send_semantics: send_semantics, nesting: nesting,
                    managers: managers, manages: manages, messages: decls }
     }

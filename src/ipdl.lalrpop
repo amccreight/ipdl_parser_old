@@ -162,7 +162,7 @@ UnionDecl: (Namespace, Vec<TypeSpec>) = {
 
 ProtocolDefn: (Namespace, Protocol) = {
     <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
-        <managers:ManagersStmtOpt> <manages:ManagesStmt?> <decls:MessageDeclThing*> "}" ";" =>
+        <managers:ManagersStmtOpt> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" ";" =>
     {
 
         if let FileType::Header = parser_state.file_type {
