@@ -34,6 +34,8 @@ fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option
             return Some(pb)
         }
     }
+
+    println!("No such file or directory `{}'.", file_path.display());
     return None
 }
 
@@ -144,14 +146,10 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     // context of every file in the work list.
 
     for f in file_names {
-        let fc = match f.canonicalize() {
-            Ok(fc) => fc,
-            Err(e) => {
-                println!("{} `{}'", e, f.display());
-                return None;
-            }
+        let fc = match resolve_include_path(&vec![PathBuf::from("")], &f) {
+            Some(fc) => fc,
+            None => return None,
         };
-
         work_list.insert(fc);
     }
 
@@ -170,7 +168,10 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             };
 
             for i in &tu.includes {
-                let p = resolve_include_path(include_dirs, Path::new(&i)).unwrap();
+                let p = match resolve_include_path(include_dirs, Path::new(&i)) {
+                    Some(p) => p,
+                    None => return None,
+                };
                 if parsed.contains_key(&p) || work_list.contains(&p) {
                     continue;
                 }
