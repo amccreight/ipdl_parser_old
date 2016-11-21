@@ -72,8 +72,8 @@ impl StructField {
 
 #[derive(Clone, Debug)]
 pub struct Namespace {
-    name: String,
-    namespaces: Vec<String>,
+    pub name: String,
+    pub namespaces: Vec<String>,
 }
 
 impl Namespace {

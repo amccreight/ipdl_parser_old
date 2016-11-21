@@ -8,6 +8,7 @@ pub mod ast;
 pub mod ipdl;
 pub mod parser;
 pub mod uncommenter;
+pub mod type_check;
 
 use getopts::Options;
 use std::path::PathBuf;
@@ -65,5 +66,8 @@ fn main() {
     }
 
     let tus = maybe_tus.unwrap();
-    println!("Output: {:?}", tus.len());
+
+    for (_, tu) in tus {
+        type_check::check(&tu);
+    }
 }
