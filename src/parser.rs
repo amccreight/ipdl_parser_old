@@ -144,7 +144,15 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     // context of every file in the work list.
 
     for f in file_names {
-        work_list.insert(f.canonicalize().unwrap());
+        let fc = match f.canonicalize() {
+            Ok(fc) => fc,
+            Err(e) => {
+                println!("{} `{}'", e, f.display());
+                return None;
+            }
+        };
+
+        work_list.insert(fc);
     }
 
     while !work_list.is_empty() {
