@@ -2,6 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+extern crate lalrpop_util as __lalrpop_util;
+use self::__lalrpop_util::ParseError as ParseError;
+
 use std::collections::{HashMap, HashSet};
 use std::cell::Cell;
 use std::io::prelude::*;
@@ -61,7 +64,36 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
-pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> TranslationUnit {
+// Line numbering starts at 1, column numbering starts at 0.
+fn location_from_char_offsets(file: &str, offsets: Vec<usize>) -> Vec<(usize, usize)>
+{
+    let mut curr_start = 0;
+    let mut line_number = 1;
+    let mut offsets_iter = offsets.iter();
+    let mut curr_offset = *offsets_iter.next().unwrap();
+    let mut locations = Vec::new();
+
+    for l in file.lines() {
+        assert!(curr_offset >= curr_start);
+        let new_start = curr_start + l.len() + 1;
+        while curr_offset < new_start {
+            locations.push((line_number, curr_offset - curr_start));
+            match offsets_iter.next() {
+                Some(new_offset) => {
+                    assert!(*new_offset >= curr_offset);
+                    curr_offset = *new_offset;
+                },
+                None => return locations
+            }
+        }
+        line_number += 1;
+        curr_start = new_start;
+    }
+
+    panic!("Failed to find char offset");
+}
+
+pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<TranslationUnit, String> {
 
     // The file type and name are later enforced by the type checker.
     // This is just a hint to the parser.
@@ -73,11 +105,38 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> TranslationU
     s = uncomment(&s);
 
     let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name);
-    parse_TranslationUnit(&parser_state, &s).unwrap()
+    parse_TranslationUnit(&parser_state, &s)
+        .map_err(|e| {
+            match e {
+                ParseError::InvalidToken { location } => {
+                    let (line, col) = location_from_char_offsets(&s, vec!(location))[0];
+                    format!(":{}:{} Unexpected token.", line, col)
+                },
+                ParseError::UnrecognizedToken { token, expected: _ } => {
+                    match token {
+                        Some((start, t, _)) => {
+                            let start_line = location_from_char_offsets(&s, vec!(start))[0].0;
+                            format!(":{} Error: Unrecognized token `{}'.",
+                                    start_line, t.1)
+                        },
+                        None => String::from(" Unexpected EOL."),
+                    }
+                    // XXX Can anything useful be reported about |expected|?
+                },
+                ParseError::ExtraToken{ token } => {
+                    let (start, t, _) = token;
+                    let start_line = location_from_char_offsets(&s, vec!(start))[0].0;
+                    format!(":{} Error: Extra token `{}'.",
+                            start_line, t.1)
+                },
+                ParseError::User{ error: _ } => {
+                    panic!("Unexpected user error.");
+                },
+            }})
 }
 
 
-pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<PathBuf, TranslationUnit> {
+pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<PathBuf, TranslationUnit>> {
     let mut work_list : HashSet<PathBuf> = HashSet::new();
     let mut parsed : HashMap<PathBuf, TranslationUnit> = HashMap::new();
 
@@ -85,14 +144,21 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<P
     // context of every file in the work list.
 
     for f in file_names {
-        work_list.insert(f);
+        work_list.insert(f.canonicalize().unwrap());
     }
 
     while !work_list.is_empty() {
         let mut new_work_list = HashSet::new();
         for curr_file in &work_list {
             println!("Parsing file: {:?}", curr_file);
-            let tu = parse_file(&include_dirs, curr_file);
+            let tu = match parse_file(&include_dirs, curr_file) {
+                Ok(tu) => tu,
+                Err(message) => {
+                    println!("{}{}", curr_file.display(), message);
+                    println!("Specification could not be parsed.");
+                    return None
+                }
+            };
 
             for i in &tu.includes {
                 let p = resolve_include_path(include_dirs, Path::new(&i)).unwrap();
@@ -108,5 +174,5 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> HashMap<P
         work_list = new_work_list;
     }
 
-    parsed
+    Some(parsed)
 }

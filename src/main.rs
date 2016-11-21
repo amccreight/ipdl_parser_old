@@ -57,5 +57,12 @@ fn main() {
         file_names.push(PathBuf::from(f));
     }
 
-    println!("Output: {:?}", parser::parse(&include_dirs, file_names).len());
+    let maybe_tus = parser::parse(&include_dirs, file_names);
+
+    if maybe_tus.is_none() {
+        return;
+    }
+
+    let tus = maybe_tus.unwrap();
+    println!("Output: {:?}", tus.len());
 }
