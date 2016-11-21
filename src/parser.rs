@@ -5,7 +5,7 @@
 extern crate lalrpop_util as __lalrpop_util;
 use self::__lalrpop_util::ParseError as ParseError;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::cell::Cell;
 use std::io::prelude::*;
 use std::fs::File;
@@ -138,9 +138,15 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
 }
 
 
+fn print_include_context(include_context: &Vec<PathBuf>) {
+    for i in include_context {
+        println!("  in file included from `{}':", i.display());
+    }
+}
+
 pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<PathBuf, TranslationUnit>> {
-    let mut work_list : HashSet<PathBuf> = HashSet::new();
-    let mut parsed : HashMap<PathBuf, TranslationUnit> = HashMap::new();
+    let mut work_list : HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    let mut parsed = HashMap::new();
 
     // XXX For error reporting purposes, we should track the include
     // context of every file in the work list.
@@ -150,17 +156,18 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             Some(fc) => fc,
             None => return None,
         };
-        work_list.insert(fc);
+        work_list.insert(fc, Vec::new());
     }
 
     while !work_list.is_empty() {
-        let mut new_work_list = HashSet::new();
-        for curr_file in &work_list {
+        let mut new_work_list = HashMap::new();
+        for (curr_file, include_context) in &work_list {
             // XXX In the long run, we probably don't want to output this.
             println!("Parsing file {}", curr_file.display());
             let tu = match parse_file(&include_dirs, curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
+                    print_include_context(&include_context);
                     println!("{}{}", curr_file.display(), message);
                     println!("Specification could not be parsed.");
                     return None
@@ -170,12 +177,16 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             for i in &tu.includes {
                 let p = match resolve_include_path(include_dirs, Path::new(&i)) {
                     Some(p) => p,
+                    // XXX Should display the error here I guess, so
+                    // we can have the include context.
                     None => return None,
                 };
-                if parsed.contains_key(&p) || work_list.contains(&p) {
+                if parsed.contains_key(&p) || work_list.contains_key(&p) {
                     continue;
                 }
-                new_work_list.insert(p);
+                let mut new_context = include_context.clone();
+                new_context.push(curr_file.clone());
+                new_work_list.insert(p, new_context);
             }
 
             parsed.insert(curr_file.clone(), tu);
