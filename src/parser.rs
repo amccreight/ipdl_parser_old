@@ -150,7 +150,8 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     while !work_list.is_empty() {
         let mut new_work_list = HashSet::new();
         for curr_file in &work_list {
-            println!("Parsing file: {:?}", curr_file);
+            // XXX In the long run, we probably don't want to output this.
+            println!("Parsing file {}", curr_file.display());
             let tu = match parse_file(&include_dirs, curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
