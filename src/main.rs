@@ -60,6 +60,7 @@ fn main() {
     let maybe_tus = parser::parse(&include_dirs, file_names);
 
     if maybe_tus.is_none() {
+        println!("Specification could not be parsed.");
         return;
     }
 

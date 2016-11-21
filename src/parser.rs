@@ -35,7 +35,6 @@ fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option
         }
     }
 
-    println!("No such file or directory `{}'.", file_path.display());
     return None
 }
 
@@ -154,7 +153,10 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     for f in file_names {
         let fc = match resolve_include_path(&vec![PathBuf::from("")], &f) {
             Some(fc) => fc,
-            None => return None,
+            None => {
+                println!("Error: can't locate file specified on the comamnd line `{}'", f.display());
+                return None
+            },
         };
         work_list.insert(fc, Vec::new());
     }
@@ -169,7 +171,6 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 Err(message) => {
                     print_include_context(&include_context);
                     println!("{}{}", curr_file.display(), message);
-                    println!("Specification could not be parsed.");
                     return None
                 }
             };
@@ -177,9 +178,11 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             for i in &tu.includes {
                 let p = match resolve_include_path(include_dirs, Path::new(&i)) {
                     Some(p) => p,
-                    // XXX Should display the error here I guess, so
-                    // we can have the include context.
-                    None => return None,
+                    None => {
+                        print_include_context(&include_context);
+                        println!("Error: can't locate include file `{}'", i);
+                        return None
+                    },
                 };
                 if parsed.contains_key(&p) || work_list.contains_key(&p) {
                     continue;
