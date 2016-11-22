@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct QualifiedId {
-    base_id: String,
-    quals: Vec<String>
+    pub base_id: String,
+    pub quals: Vec<String>
 }
 
 impl QualifiedId {
@@ -93,6 +93,10 @@ impl Namespace {
 
     pub fn add_outer_namespace(&mut self, namespace: &String) {
         self.namespaces.insert(0, namespace.clone());
+    }
+
+    pub fn qname(&self) -> QualifiedId {
+        QualifiedId { base_id: self.name.clone(), quals: self.namespaces.clone() }
     }
 }
 
