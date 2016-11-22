@@ -21,6 +21,16 @@ impl QualifiedId {
         self.base_id = id;
         self
     }
+
+    pub fn new_from_iter<'a, I> (mut ids: I) -> QualifiedId
+        where I: Iterator<Item=&'a str>
+    {
+        let mut qual_id = QualifiedId::new(String::from(ids.next().unwrap()));
+        for i in ids {
+            qual_id = qual_id.qualify(String::from(i));
+        }
+        qual_id
+    }
 }
 
 #[derive(Debug)]

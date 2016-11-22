@@ -40,12 +40,7 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
 ];
 
 fn builtin_from_string(tname: &str) -> TypeSpec {
-    let mut quals_iter = tname.split("::");
-    let mut qual_id = QualifiedId::new(String::from(quals_iter.next().unwrap()));
-    for q in quals_iter {
-        qual_id = qual_id.qualify(String::from(q));
-    }
-    TypeSpec::new(qual_id)
+    TypeSpec::new(QualifiedId::new_from_iter(tname.split("::")))
 }
 
 // XXX This may not really need to be a function.
