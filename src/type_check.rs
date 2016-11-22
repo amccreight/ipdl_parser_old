@@ -72,6 +72,10 @@ fn gather_decls(tu: &TranslationUnit) -> Result<(), String> {
                            tu.namespace.name, expected_file_name, base_file_name))
     }
 
+    if let Some(ref p) = tu.protocol {
+        assert!(tu.namespace.name == p.0.name);
+    }
+
     return Ok(())
 }
 
