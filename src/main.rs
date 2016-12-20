@@ -67,6 +67,8 @@ fn main() {
 
     let tus = maybe_tus.unwrap();
 
+    print!("OUT: {:?}\n", tus);
+
     for (_, tu) in tus {
         type_check::check(&tu);
     }

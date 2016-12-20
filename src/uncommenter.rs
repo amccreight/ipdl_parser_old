@@ -56,6 +56,8 @@ pub fn uncomment(text: &str) -> String {
                 s.push(if c == '\n' { '\n' } else { ' ' });
                 if c == '/' {
                     state = State::Default;
+                } else if c == '*' {
+                    state = State::EndingMultilineComment;
                 } else {
                     state = State::InMultilineComment;
                 }

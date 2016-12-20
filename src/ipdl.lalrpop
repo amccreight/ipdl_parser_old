@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use ast::{Compress, CxxTypeKind, Direction, FileType, MessageDecl,
+use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier, MessageDecl,
           MessageModifier, Namespace, Nesting, Param, Priority,
           Protocol, QualifiedId, SendSemantics, StructField,
           StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
@@ -17,6 +17,12 @@ ID: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
 
 STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
+Identifier: Identifier = {
+    <start:@L> <id:ID> <end:@R> => {
+        let start_loc = parser_state.resolve_location(start);
+        Identifier::new(id, start_loc)
+    }
+};
 
 //-----------------------------------------------------------------------------
 
@@ -132,7 +138,7 @@ CxxTypeKind: CxxTypeKind = {
 // Namespaced stuff
 
 NamespaceThing: Vec<(Namespace, TopLevelDecl)> = {
-    "namespace" <name:ID> "{" <many_things:NamespaceThing+> "}" => {
+    "namespace" <name:Identifier> "{" <many_things:NamespaceThing+> "}" => {
         let mut things = Vec::new();
         for old_things in many_things {
             for (mut ns, node) in old_things {
@@ -148,7 +154,7 @@ NamespaceThing: Vec<(Namespace, TopLevelDecl)> = {
 };
 
 StructDecl: (Namespace, Vec<StructField>) = {
-    "struct" <name:ID> "{" <raw_fields: (StructField ";")* > "}" ";" => {
+    "struct" <name:Identifier> "{" <raw_fields: (StructField ";")* > "}" ";" => {
         let mut fields = Vec::new();
         for (f, _) in raw_fields {
             fields.push(f);
@@ -158,11 +164,11 @@ StructDecl: (Namespace, Vec<StructField>) = {
 };
 
 StructField: StructField = {
-    <t:Type> <field_name:ID> => StructField::new(t, field_name)
+    <t:Type> <field_name:Identifier> => StructField::new(t, field_name)
 };
 
 UnionDecl: (Namespace, Vec<TypeSpec>) = {
-    "union" <name:ID> "{" <raw_components: (Type ";")+ > "}" ";" => {
+    "union" <name:Identifier> "{" <raw_components: (Type ";")+ > "}" ";" => {
         let mut components = Vec::new();
         for (c, _) in raw_components {
             components.push(c);
@@ -172,7 +178,7 @@ UnionDecl: (Namespace, Vec<TypeSpec>) = {
 };
 
 ProtocolDefn: (Namespace, Protocol) = {
-    <q:ProtocolSendSemanticsQual?> "protocol" <name:ID> "{"
+    <q:ProtocolSendSemanticsQual?> "protocol" <name:Identifier> "{"
         <managers:ManagersStmtOpt> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" ";" =>
     {
 
@@ -189,22 +195,22 @@ ProtocolDefn: (Namespace, Protocol) = {
 //--------------------
 // manager/manages stmts
 
-ManagersStmtOpt: Vec<String> = {
+ManagersStmtOpt: Vec<Identifier> = {
     "manager" <l:ManagerList> ";" => l,
     => Vec::new(),
 };
 
-ManagerList: Vec<String> = {
-    <name:ID> => vec![name],
-    <l:ManagerList> "or" <name:ID> => {
+ManagerList: Vec<Identifier> = {
+    <name:Identifier> => vec![name],
+    <l:ManagerList> "or" <name:Identifier> => {
         let mut l = l;
         l.push(name);
         l
     }
 };
 
-ManagesStmt: String = {
-    "manages" <name:ID> ";" => name,
+ManagesStmt: Identifier = {
+    "manages" <name:Identifier> ";" => name,
 };
 
 
@@ -217,9 +223,9 @@ MessageDeclThing : MessageDecl = {
 };
 
 MessageDirectionLabel : () = {
-    "parent" => parser_state.direction.set(Some(Direction::In)),
-    "child" => parser_state.direction.set(Some(Direction::Out)),
-    "both" => parser_state.direction.set(Some(Direction::InOut)),
+    "parent" => parser_state.direction.set(Some(Direction::ToParent)),
+    "child" => parser_state.direction.set(Some(Direction::ToChild)),
+    "both" => parser_state.direction.set(Some(Direction::ToParentOrChild)),
 };
 
 MessageDecl: MessageDecl = {
@@ -235,27 +241,20 @@ MessageDecl: MessageDecl = {
             // XXX Surely there's a better way to do this.
             panic!("Missing message direction.");
         }
-        msg.direction = parser_state.direction.get().clone();
+        msg.direction = parser_state.direction.get().unwrap().clone();
 
         msg
     },
 };
 
 MessageBody: MessageDecl = {
-    <name:MessageId> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> <modifiers:MessageModifier*> => {
+    <name:Identifier> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> <modifiers:MessageModifier*> => {
         let mut decl = MessageDecl::new(name);
         decl.add_in_params(in_params);
         decl.add_out_params(out_params);
         decl.add_modifiers(modifiers);
         decl
     },
-};
-
-MessageId: String = {
-    <id:ID> => id,
-    // I think the Python IPDL parser produces an error here if the id
-    // here is "delete".
-    "__delete__" => String::from("__delete__"),
 };
 
 MessageOutParams: Vec<Param> = {
@@ -325,7 +324,7 @@ ParamList: Vec<Param> = {
 };
 
 Param: Param = {
-    <t:Type> <name:ID> => Param::new(t, name)
+    <t:Type> <name:Identifier> => Param::new(t, name)
 };
 
 Type: TypeSpec = {
@@ -355,11 +354,13 @@ QualifiedID: QualifiedId = {
     <id1:CxxID> "::" <id2:CxxID> => QualifiedId::new(id1).qualify(id2),
 };
 
-CxxID: String = {
-    ID,
+CxxID: Identifier = {
+    Identifier,
     CxxTemplateInst,
 };
 
-CxxTemplateInst: String = {
-    <t_name:ID> "<" <arg:ID> ">" => t_name + "<" + &arg + ">"
+CxxTemplateInst: Identifier = {
+    <start:@L> <t_name:Identifier> "<" <arg:Identifier> ">" <end:@R> => {
+        Identifier::new(t_name.id + "<" + &arg.id + ">", t_name.loc)
+    }
 };
