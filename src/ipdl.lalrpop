@@ -16,7 +16,7 @@ grammar(parser_state: &ParserState);
 STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 Identifier: Identifier = {
-    <start:@L> <id:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => {
+    <start:@L> <id:r"[a-zA-Z_][a-zA-Z0-9_]*"> => {
         let start_loc = parser_state.resolve_location(start);
         Identifier::new(String::from(id), start_loc)
     }
@@ -359,7 +359,7 @@ CxxID: Identifier = {
 };
 
 CxxTemplateInst: Identifier = {
-    <start:@L> <t_name:Identifier> "<" <arg:Identifier> ">" <end:@R> => {
+    <t_name:Identifier> "<" <arg:Identifier> ">" => {
         Identifier::new(t_name.id + "<" + &arg.id + ">", t_name.loc)
     }
 };
