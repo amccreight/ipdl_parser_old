@@ -13,14 +13,12 @@ grammar(parser_state: &ParserState);
 
 //-----------------------------------------------------------------------------
 
-ID: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
-
 STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 Identifier: Identifier = {
-    <start:@L> <id:ID> <end:@R> => {
+    <start:@L> <id:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => {
         let start_loc = parser_state.resolve_location(start);
-        Identifier::new(id, start_loc)
+        Identifier::new(String::from(id), start_loc)
     }
 };
 
