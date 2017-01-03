@@ -3,20 +3,20 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::path::{Path, PathBuf};
-
+use std::fmt;
 
 #[derive(Debug)]
 pub struct QualifiedId {
-    pub base_id: String,
-    pub quals: Vec<String>
+    pub base_id: Identifier,
+    pub quals: Vec<Identifier>
 }
 
 impl QualifiedId {
-    pub fn new(base: String) -> QualifiedId {
+    pub fn new(base: Identifier) -> QualifiedId {
         QualifiedId { base_id: base, quals: Vec::new() }
     }
 
-    pub fn qualify(mut self, id: String) -> QualifiedId {
+    pub fn qualify(mut self, id: Identifier) -> QualifiedId {
         self.quals.push(self.base_id);
         self.base_id = id;
         self
@@ -25,9 +25,10 @@ impl QualifiedId {
     pub fn new_from_iter<'a, I> (mut ids: I) -> QualifiedId
         where I: Iterator<Item=&'a str>
     {
-        let mut qual_id = QualifiedId::new(String::from(ids.next().unwrap()));
+        let loc = Location { lineno: 0, colno: 0 };
+        let mut qual_id = QualifiedId::new(Identifier::new(String::from(ids.next().unwrap()), loc.clone()));
         for i in ids {
-            qual_id = qual_id.qualify(String::from(i));
+            qual_id = qual_id.qualify(Identifier::new(String::from(i), loc.clone()));
         }
         qual_id
     }
@@ -58,12 +59,12 @@ impl TypeSpec {
 
 #[derive(Debug)]
 pub struct Param {
-    name: String,
+    name: Identifier,
     type_spec: TypeSpec,
 }
 
 impl Param {
-    pub fn new(type_spec: TypeSpec, name: String) -> Param {
+    pub fn new(type_spec: TypeSpec, name: Identifier) -> Param {
         Param { name: name, type_spec: type_spec }
     }
 }
@@ -71,27 +72,27 @@ impl Param {
 #[derive(Debug)]
 pub struct StructField {
     type_spec: TypeSpec,
-    name: String,
+    name: Identifier,
 }
 
 impl StructField {
-    pub fn new(ty: TypeSpec, name: String) -> StructField {
+    pub fn new(ty: TypeSpec, name: Identifier) -> StructField {
         StructField { type_spec: ty, name: name }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Namespace {
-    pub name: String,
-    pub namespaces: Vec<String>,
+    pub name: Identifier,
+    pub namespaces: Vec<Identifier>,
 }
 
 impl Namespace {
-    pub fn new(name: String) -> Namespace {
+    pub fn new(name: Identifier) -> Namespace {
         Namespace { name: name, namespaces: Vec::new() }
     }
 
-    pub fn add_outer_namespace(&mut self, namespace: &String) {
+    pub fn add_outer_namespace(&mut self, namespace: &Identifier) {
         self.namespaces.insert(0, namespace.clone());
     }
 
@@ -113,7 +114,7 @@ pub enum MessageModifier {
     Compress(Compress),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SendSemantics {
     Async,
     Sync,
@@ -133,20 +134,47 @@ pub enum Priority {
     High,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
-    In,
-    Out,
-    InOut,
+    ToParent,
+    ToChild,
+    ToParentOrChild,
+}
+
+#[derive(Debug, Clone)]
+pub struct Location {
+    pub lineno: usize,
+    pub colno: usize,
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.lineno, self.colno)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Identifier {
+    pub id: String,
+    pub loc: Location,
+}
+
+impl Identifier {
+    pub fn new(name: String, loc: Location) -> Identifier {
+        Identifier {
+            id: name,
+            loc: loc,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct MessageDecl {
-    name: String,
+    pub name: Identifier,
     pub send_semantics: SendSemantics,
     pub nesting: Nesting,
     pub prio: Priority,
-    pub direction: Option<Direction>,
+    pub direction: Direction,
     in_params: Vec<Param>,
     out_params: Vec<Param>,
     compress: Compress,
@@ -154,13 +182,13 @@ pub struct MessageDecl {
 }
 
 impl MessageDecl {
-    pub fn new(name: String) -> MessageDecl {
+    pub fn new(name: Identifier) -> MessageDecl {
         MessageDecl {
             name: name,
             send_semantics: SendSemantics::Async,
             nesting: Nesting::None,
             prio: Priority::Normal,
-            direction: None,
+            direction: Direction::ToParent,
             in_params: Vec::new(),
             out_params: Vec::new(),
             compress: Compress::None,
@@ -190,14 +218,14 @@ impl MessageDecl {
 pub struct Protocol {
     send_semantics: SendSemantics,
     nesting: Nesting,
-    managers: Vec<String>,
-    manages: Vec<String>,
-    messages: Vec<MessageDecl>,
+    pub managers: Vec<Identifier>,
+    pub manages: Vec<Identifier>,
+    pub messages: Vec<MessageDecl>,
 }
 
 impl Protocol {
     pub fn new(send_semantics: SendSemantics, nesting: Nesting,
-               managers: Vec<String>, manages: Vec<String>, decls: Vec<MessageDecl>) -> Protocol {
+               managers: Vec<Identifier>, manages: Vec<Identifier>, decls: Vec<MessageDecl>) -> Protocol {
         Protocol { send_semantics: send_semantics, nesting: nesting,
                    managers: managers, manages: manages, messages: decls }
     }

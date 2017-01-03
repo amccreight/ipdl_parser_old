@@ -61,7 +61,7 @@ fn gather_decls(tu: &TranslationUnit) -> Result<(), String> {
         None => return Err(String::from("File path has no file")),
     };
 
-    let mut expected_file_name = tu.namespace.name.clone() + ".ipdl";
+    let mut expected_file_name = tu.namespace.name.id.clone() + ".ipdl";
 
     if tu.protocol.is_none() {
         expected_file_name.push('h');
@@ -69,11 +69,11 @@ fn gather_decls(tu: &TranslationUnit) -> Result<(), String> {
 
     if base_file_name != expected_file_name {
         return Err(format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
-                           tu.namespace.name, expected_file_name, base_file_name))
+                           tu.namespace.name.id, expected_file_name, base_file_name))
     }
 
     if let Some(ref p) = tu.protocol {
-        assert!(tu.namespace.name == p.0.name);
+        assert!(tu.namespace.name.id == p.0.name.id);
     }
 
     return Ok(())
