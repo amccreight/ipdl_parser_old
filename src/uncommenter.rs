@@ -81,13 +81,13 @@ fn basic_tests() {
     assert_eq!(uncomment("0/*12\n3*/0"), "0    \n   0");
 
     // Newline right before fake end of multiline comment.
-    assert_eq!(uncomment("/**\n*/"), "   \n  ");
+    assert_eq!(uncomment("/**\n*/0"), "   \n  0");
 
     // After we get a * in the middle of a multiline comment, that is
     // not followed by a /, we need to reset to the normal
     // in-multiline-comment state. Funnily enough, this is necessary
     // to correctly parse the multiline comment version of the MPL2.
-    assert_eq!(uncomment("/**x/y*/"), "        ");
+    assert_eq!(uncomment("/**x/y*/0"), "        0");
 
     assert_eq!(uncomment("/* ... **/123"),
                          "          123");
