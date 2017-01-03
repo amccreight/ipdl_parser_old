@@ -88,4 +88,7 @@ fn basic_tests() {
     // in-multiline-comment state. Funnily enough, this is necessary
     // to correctly parse the multiline comment version of the MPL2.
     assert_eq!(uncomment("/**x/y*/"), "        ");
+
+    assert_eq!(uncomment("/* ... **/123"),
+                         "          123");
 }
