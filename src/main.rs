@@ -60,12 +60,12 @@ fn main() {
 
     let maybe_tus = parser::parse(&include_dirs, file_names);
 
-    if maybe_tus.is_none() {
-        println!("Specification could not be parsed.");
-        return;
-    }
-
-    let tus = maybe_tus.unwrap();
+    let tus = match maybe_tus {
+        Some(m) => { m },
+        None => {
+            panic!("Specification could not be parsed.");
+        }
+    };
 
     print!("OUT: {:?}\n", tus);
 
