@@ -10,3 +10,6 @@ lalrpop = "0.12.1"
 [dependencies]
 lalrpop-util = "0.12.1"
 getopts = "0.2.14"
+env_logger = "0.3.5"
+# We need to depend on log due to https://github.com/rust-lang/rust/issues/27812
+log = "0.3"

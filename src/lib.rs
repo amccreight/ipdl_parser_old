@@ -1,3 +1,4 @@
+#[macro_use] extern crate log;
 pub mod ast;
 mod ipdl;
 pub mod parser;

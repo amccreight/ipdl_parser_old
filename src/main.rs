@@ -2,7 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+extern crate env_logger;
 extern crate getopts;
+#[macro_use] extern crate log;
 
 pub mod ast;
 pub mod ipdl;
@@ -35,6 +37,7 @@ fn get_options_parser() -> Options {
 }
 
 fn main() {
+    env_logger::init().unwrap();
     let args : Vec<String> = env::args().collect();
 
     let opts = get_options_parser();
@@ -60,12 +63,12 @@ fn main() {
 
     let maybe_tus = parser::parse(&include_dirs, file_names);
 
-    if maybe_tus.is_none() {
-        println!("Specification could not be parsed.");
-        return;
-    }
-
-    let tus = maybe_tus.unwrap();
+    let tus = match maybe_tus {
+        Some(m) => { m },
+        None => {
+            panic!("Specification could not be parsed.");
+        }
+    };
 
     print!("OUT: {:?}\n", tus);
 
