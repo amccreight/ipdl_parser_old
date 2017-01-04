@@ -142,7 +142,7 @@ fn print_include_context(include_context: &Vec<PathBuf>) {
 }
 
 pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<PathBuf, TranslationUnit>> {
-    let mut work_list : HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    let mut work_list : Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
     let mut parsed = HashMap::new();
     let mut visited = HashSet::new();
 
@@ -158,15 +158,15 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             },
         };
         visited.insert(fc.clone());
-        work_list.insert(fc, Vec::new());
+        work_list.push((fc, Vec::new()));
     }
 
     while !work_list.is_empty() {
-        let mut new_work_list = HashMap::new();
-        for (curr_file, include_context) in &work_list {
+        let mut new_work_list = Vec::new();
+        for (curr_file, include_context) in work_list {
             // XXX In the long run, we probably don't want to output this.
             println!("Parsing file {}", curr_file.display());
-            let tu = match parse_file(&include_dirs, curr_file) {
+            let tu = match parse_file(&include_dirs, &curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
                     print_include_context(&include_context);
@@ -190,7 +190,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 let mut new_context = include_context.clone();
                 new_context.push(curr_file.clone());
                 visited.insert(p.clone());
-                new_work_list.insert(p, new_context);
+                new_work_list.push((p, new_context));
             }
 
             parsed.insert(curr_file.clone(), tu);
