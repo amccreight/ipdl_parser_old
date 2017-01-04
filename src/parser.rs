@@ -134,7 +134,7 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
 }
 
 
-fn print_include_context(include_context: &Vec<PathBuf>) {
+fn log_include_context(include_context: &Vec<PathBuf>) {
     for i in include_context {
         info!("  in file included from `{}':", i.display());
     }
@@ -165,7 +165,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             let tu = match parse_file(&include_dirs, curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
-                    print_include_context(&include_context);
+                    log_include_context(&include_context);
                     error!("{}{}", curr_file.display(), message);
                     return None
                 }
@@ -175,7 +175,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 let p = match resolve_include_path(include_dirs, Path::new(&i)) {
                     Some(p) => p,
                     None => {
-                        print_include_context(&include_context);
+                        log_include_context(&include_context);
                         error!("Can't locate include file `{}'", i);
                         return None
                     },
