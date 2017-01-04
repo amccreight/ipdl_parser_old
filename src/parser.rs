@@ -136,7 +136,7 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
 
 fn print_include_context(include_context: &Vec<PathBuf>) {
     for i in include_context {
-        println!("  in file included from `{}':", i.display());
+        info!("  in file included from `{}':", i.display());
     }
 }
 
@@ -151,7 +151,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
         let fc = match resolve_include_path(&vec![PathBuf::from("")], &f) {
             Some(fc) => fc,
             None => {
-                println!("Error: can't locate file specified on the comamnd line `{}'", f.display());
+                error!("Error: can't locate file specified on the command line `{}'", f.display());
                 return None
             },
         };
@@ -161,13 +161,12 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     while !work_list.is_empty() {
         let mut new_work_list = HashMap::new();
         for (curr_file, include_context) in &work_list {
-            // XXX In the long run, we probably don't want to output this.
-            println!("Parsing file {}", curr_file.display());
+            info!("Parsing file {}", curr_file.display());
             let tu = match parse_file(&include_dirs, curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
                     print_include_context(&include_context);
-                    println!("{}{}", curr_file.display(), message);
+                    error!("{}{}", curr_file.display(), message);
                     return None
                 }
             };
@@ -177,7 +176,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                     Some(p) => p,
                     None => {
                         print_include_context(&include_context);
-                        println!("Error: can't locate include file `{}'", i);
+                        error!("Can't locate include file `{}'", i);
                         return None
                     },
                 };
