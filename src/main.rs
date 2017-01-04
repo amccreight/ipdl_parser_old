@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+extern crate env_logger;
 extern crate getopts;
 
 pub mod ast;
@@ -35,6 +36,7 @@ fn get_options_parser() -> Options {
 }
 
 fn main() {
+    env_logger::init().unwrap();
     let args : Vec<String> = env::args().collect();
 
     let opts = get_options_parser();
