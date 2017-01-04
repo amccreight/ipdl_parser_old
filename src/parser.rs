@@ -6,6 +6,7 @@ extern crate lalrpop_util as __lalrpop_util;
 use self::__lalrpop_util::ParseError as ParseError;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::cell::Cell;
 use std::io::prelude::*;
 use std::fs::File;
@@ -143,6 +144,7 @@ fn print_include_context(include_context: &Vec<PathBuf>) {
 pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<PathBuf, TranslationUnit>> {
     let mut work_list : HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
     let mut parsed = HashMap::new();
+    let mut visited = HashSet::new();
 
     // XXX For error reporting purposes, we should track the include
     // context of every file in the work list.
@@ -155,6 +157,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 return None
             },
         };
+        visited.insert(fc.clone());
         work_list.insert(fc, Vec::new());
     }
 
@@ -181,11 +184,12 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                         return None
                     },
                 };
-                if parsed.contains_key(&p) || work_list.contains_key(&p) {
+                if visited.contains(&p) {
                     continue;
                 }
                 let mut new_context = include_context.clone();
                 new_context.push(curr_file.clone());
+                visited.insert(p.clone());
                 new_work_list.insert(p, new_context);
             }
 
