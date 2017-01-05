@@ -153,7 +153,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
         let fc = match resolve_include_path(&vec![PathBuf::from("")], &f) {
             Some(fc) => fc,
             None => {
-                println!("Error: can't locate file specified on the comamnd line `{}'", f.display());
+                println!("Error: can't locate file specified on the command line `{}'", f.display());
                 return None
             },
         };
