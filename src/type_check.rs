@@ -55,25 +55,25 @@ fn make_builtin_using() -> Vec<TypeSpec> {
 fn gather_decls(tu: &TranslationUnit) -> Result<(), String> {
     // XXX Pass in builtin_using?
 
-    // For everyone's sanity, enforce that the filename and tu name match.
-    let base_file_name = match tu.file_name.file_name() {
-        Some(fs) => fs.to_str().unwrap(),
-        None => return Err(String::from("File path has no file")),
-    };
-
-    let mut expected_file_name = tu.namespace.name.id.clone() + ".ipdl";
-
-    if tu.protocol.is_none() {
-        expected_file_name.push('h');
-    }
-
-    if base_file_name != expected_file_name {
-        return Err(format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
-                           tu.namespace.name.id, expected_file_name, base_file_name))
-    }
-
+    // For a protocol file, the filename should match the
+    // protocol. (In the Python IPDL compiler, translation units have
+    // a separate "name" field that is checked here, but for protocol
+    // files the name is just the name of the protocol, and for
+    // non-protocols the name is derived from the file name, so this
+    // checking should be equivalent.)
     if let Some(ref p) = tu.protocol {
-        assert!(tu.namespace.name.id == p.0.name.id);
+
+        let base_file_name = match tu.file_name.file_name() {
+            Some(fs) => fs.to_str().unwrap(),
+            None => return Err(String::from("File path has no file")),
+        };
+
+        let expected_file_name = p.0.name.id.clone() + ".ipdl";
+
+        if base_file_name != expected_file_name {
+            return Err(format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
+                               tu.namespace.name.id, expected_file_name, base_file_name))
+        }
     }
 
     return Ok(())
