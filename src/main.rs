@@ -9,6 +9,7 @@ pub mod ipdl;
 pub mod parser;
 pub mod uncommenter;
 pub mod type_check;
+pub mod compiler;
 
 use getopts::Options;
 use std::path::PathBuf;
@@ -58,16 +59,5 @@ fn main() {
         file_names.push(PathBuf::from(f));
     }
 
-    let maybe_tus = parser::parse(&include_dirs, file_names);
-
-    if maybe_tus.is_none() {
-        println!("Specification could not be parsed.");
-        return;
-    }
-
-    let tus = maybe_tus.unwrap();
-
-    for (_, tu) in tus {
-        type_check::check(&tu);
-    }
+    compiler::compile(&include_dirs, file_names);
 }
