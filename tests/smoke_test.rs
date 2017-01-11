@@ -15,7 +15,7 @@ const ERROR_PATH: &'static str = "error";
 // is not enabled yet. Part of the issue is that the smoke tester only
 // runs the parser.
 
-fn test_enabled_files(test_file_path: &str, cb: &Fn(Option<HashMap<PathBuf, TranslationUnit>>)) {
+fn test_files(test_file_path: &str, should_pass: bool) {
     let mut path: PathBuf = BASE_PATH.iter().collect();
     path.push(test_file_path);
 
@@ -25,12 +25,25 @@ fn test_enabled_files(test_file_path: &str, cb: &Fn(Option<HashMap<PathBuf, Tran
     for entry in entries {
         if let Ok(entry) = entry {
             if entry.path().extension().unwrap() == "disabled" {
+                assert!(!should_pass, "Expected only error tests to be disabled");
                 println!("Skipping {:?}", entry.file_name());
+                // XXX What should happen here is that instead of
+                // continuing, we check to make sure that the test
+                // passes. That way, if somebody fixes the IPDL
+                // compiler, we'll get an error. However, for some
+                // tests, like twoprotocols.ipdl, the error is not
+                // handled gracefully. See issue #1.
+                continue;
             } else {
                 println!("Testing {:?}", entry.file_name());
-                let file_names = vec![entry.path()];
-                let tus = ipdl_parser::parser::parse(&include_dirs, file_names);
-                cb(tus);
+            }
+
+            let file_names = vec![entry.path()];
+            let tus = ipdl_parser::parser::parse(&include_dirs, file_names);
+            if should_pass {
+                assert!(tus.is_some());
+            } else {
+                assert!(tus.is_none());
             }
         }
     }
@@ -38,20 +51,10 @@ fn test_enabled_files(test_file_path: &str, cb: &Fn(Option<HashMap<PathBuf, Tran
 
 #[test]
 fn ok_tests() {
-    fn assert_is_some(tus: Option<HashMap<PathBuf, TranslationUnit>>) {
-        assert!(tus.is_some());
-    }
-
-    let assert_function = assert_is_some;
-    test_enabled_files(OK_PATH, &assert_function);
+    test_files(OK_PATH, true);
 }
 
 #[test]
 fn error_tests() {
-    fn assert_is_none(tus: Option<HashMap<PathBuf, TranslationUnit>>) {
-        assert!(tus.is_none());
-    }
-
-    let assert_function = assert_is_none;
-    test_enabled_files(ERROR_PATH, &assert_function);
+    test_files(ERROR_PATH, false);
 }
