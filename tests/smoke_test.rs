@@ -9,6 +9,12 @@ const BASE_PATH: [&'static str; 2] = [".", "tests"];
 const OK_PATH: &'static str = "ok";
 const ERROR_PATH: &'static str = "error";
 
+// error/twoprotocols.ipdl is disabled because of Issue #1.
+
+// The other tests in error/ are disabled because the given checking
+// is not enabled yet. Part of the issue is that the smoke tester only
+// runs the parser.
+
 fn test_enabled_files(test_file_path: &str, cb: &Fn(Option<HashMap<PathBuf, TranslationUnit>>)) {
     let mut path: PathBuf = BASE_PATH.iter().collect();
     path.push(test_file_path);
