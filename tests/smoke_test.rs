@@ -1,7 +1,5 @@
 extern crate ipdl_parser;
 
-use ipdl_parser::ast::TranslationUnit;
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
