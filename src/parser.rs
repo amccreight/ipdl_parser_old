@@ -3,6 +3,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 extern crate lalrpop_util as __lalrpop_util;
+extern crate sha1;
+
 use self::__lalrpop_util::ParseError as ParseError;
 
 use std::collections::HashMap;
@@ -23,6 +25,7 @@ pub struct ParserState {
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
+    pub hash: String,
     newline_offsets: Vec<usize>,
 }
 
@@ -41,13 +44,14 @@ fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option
 }
 
 impl ParserState {
-    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType, file_name: &Path, newline_offsets: Vec<usize>) -> ParserState {
+    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType, file_name: &Path, newline_offsets: Vec<usize>, hash: String) -> ParserState {
         ParserState {
             include_dirs: include_dirs,
             file_type: file_type,
             file_name: PathBuf::from(file_name),
             direction: Cell::new(None),
             newline_offsets: newline_offsets,
+            hash: hash,
         }
     }
 
@@ -103,7 +107,11 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
         offset += 1;
     }
 
-    let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name, newline_offsets);
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(text.as_bytes());
+    let hash = hasher.digest().to_string();
+
+    let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name, newline_offsets, hash);
     parse_TranslationUnit(&parser_state, &text)
         .map_err(|e| {
             match e {
