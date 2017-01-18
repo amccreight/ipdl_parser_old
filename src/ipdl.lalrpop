@@ -83,7 +83,8 @@ pub TranslationUnit: TranslationUnit = {
             includes: includes,
             using: using,
             structs_and_unions: structs_and_unions,
-            protocol: protocol
+            protocol: protocol,
+            hash: parser_state.hash.clone(),
         }
     }
 };

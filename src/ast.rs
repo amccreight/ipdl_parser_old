@@ -281,4 +281,5 @@ pub struct TranslationUnit {
     pub using: Vec<UsingStmt>,
     pub structs_and_unions: Vec<(Namespace, StructOrUnion)>,
     pub protocol: Option<(Namespace, Protocol)>,
+    pub hash: String,
 }
