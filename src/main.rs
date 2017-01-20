@@ -4,6 +4,7 @@
 
 extern crate getopts;
 
+pub mod utils;
 pub mod ast;
 pub mod errors;
 pub mod ipdl;

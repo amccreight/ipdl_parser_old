@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use ast::{Direction, FileType, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt, Location};
 use ipdl::parse_TranslationUnit;
 use errors::Errors;
+use utils::resolve_include_path;
 
 use uncommenter::uncomment;
 
@@ -26,20 +27,6 @@ pub struct ParserState {
     pub direction: Cell<Option<Direction>>,
     pub errors: RefCell<Errors>,
     newline_offsets: Vec<usize>,
-}
-
-fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option<PathBuf> {
-    // XXX The Python parser also checks '' for some reason.
-    for d in include_dirs {
-        let mut p = d.clone();
-        p.push(file_path);
-
-        if let Ok(pb) = p.canonicalize() {
-            return Some(pb)
-        }
-    }
-
-    return None
 }
 
 impl ParserState {

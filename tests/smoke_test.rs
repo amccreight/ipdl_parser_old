@@ -13,45 +13,11 @@ const ERROR_PATH: &'static str = "error";
 // enabled yet.
 
 const DISABLED_TESTS: &'static [ &'static str ] = &[
-    "compressCtor.ipdl",
-    "compressCtorManagee.ipdl",
-    "conflictProtocolMsg.ipdl",
-    "cyclecheck_Child.ipdl",
-    "cyclecheck_Parent.ipdl",
-    "cyclecheck_Grandchild.ipdl",
-    "intrMessageCompress.ipdl",
-    "managedNoCtor.ipdl",
-    "managedNoDtor.ipdl",
-    "managerNoCtor.ipdl",
-    "managerNoDtor.ipdl",
-    "manageSelfToplevel.ipdl",
-    "multimanDupMgrs.ipdl",
-    "multimanDupMgrsMgr.ipdl",
-    "multimanNonexistentMgrs.ipdl",
-    "mutualRecStruct.ipdl",
-    "mutualRecStructUnion.ipdl",
-    "noEmptyToplevel.ipdl",
-    "Nullable2.ipdl",
-    "Nullable.ipdl",
-    "redeclMessage.ipdl",
-    "redeclParamReturn.ipdl",
-    "shmem.ipdl",
-    "structRedecl.ipdl",
-    "structUnknownField.ipdl",
-    "syncMessageCompress.ipdl",
-    "syncParentToChild.ipdl",
-    "tooWeakIntrAsync.ipdl",
-    "tooWeakIntrSync.ipdl",
-    "tooWeakSyncAsync.ipdl",
-    "undeclParamType.ipdl",
-    "undeclProtocol.ipdl",
-    "undeclReturnType.ipdl",
-    "undefMutualRecStruct.ipdl",
-    "undefMutualRecStructUnion.ipdl",
-    "undefMutualRecUnion.ipdl",
-    "undefSelfRecStruct.ipdl",
-    "undefSelfRecUnion.ipdl",
 ];
+
+// XXX This does not run efficiently. If A includes B, then we end up
+// testing A and B two times each. At least for the non-error case we
+// should be able to do them all together.
 
 fn test_files(test_file_path: &str, should_pass: bool) {
     let mut path: PathBuf = BASE_PATH.iter().collect();

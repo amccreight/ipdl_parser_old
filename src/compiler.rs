@@ -16,12 +16,10 @@ pub fn compile(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> bool {
     }
 
     let tus = maybe_tus.unwrap();
-
-    for (_, tu) in tus {
-        if !type_check::check(&tu) {
-            return false;
-        }
+    if let Err(err) = type_check::check(&include_dirs, &tus) {
+        println!("Error(s) during type checking.\n{}", err);
+        return false;
     }
 
-    return true;
+    true
 }

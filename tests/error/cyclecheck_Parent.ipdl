@@ -1,6 +1,6 @@
 include protocol cyclecheck_Child;
 
-protocol cyclecheck_Parent {
+    protocol cyclecheck_Parent {
     manages cyclecheck_Child;
 
 child:

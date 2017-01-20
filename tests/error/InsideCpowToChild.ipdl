@@ -1,0 +1,4 @@
+protocol InsideCpowToChild {
+child:
+    nested(inside_cpow) sync Msg();
+};

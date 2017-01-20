@@ -1,0 +1,4 @@
+protocol AsyncReturn {
+child:
+    async Msg() returns(int32_t aNumber);
+};

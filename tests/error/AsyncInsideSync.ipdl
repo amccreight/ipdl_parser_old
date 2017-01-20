@@ -1,0 +1,4 @@
+protocol AsyncInsideSync {
+child:
+    nested(inside_sync) async Msg();
+};

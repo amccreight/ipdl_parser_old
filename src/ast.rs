@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QualifiedId {
     pub base_id: Identifier,
     pub quals: Vec<String>,
@@ -32,19 +32,46 @@ impl QualifiedId {
         }
         qual_id
     }
+
+    pub fn short_name(&self) -> String {
+        self.base_id.to_string()
+    }
+
+    pub fn full_name(&self) -> Option<String> {
+        if self.quals.is_empty() {
+            None
+        } else {
+            Some(self.to_string())
+        }
+    }
+
+    pub fn loc(&self) -> &Location {
+        &self.base_id.loc
+    }
+}
+
+impl fmt::Display for QualifiedId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for q in &self.quals {
+            try!(write!(f, "{}::", q));
+        }
+        write!(f, "{}", self.base_id)
+    }
 }
 
 #[derive(Debug)]
 pub struct TypeSpec {
-    spec: QualifiedId,
-    array: bool,
-    nullable: bool,
+    pub spec: QualifiedId,
+    pub array: bool,
+    pub nullable: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
         TypeSpec { spec: spec, array: false, nullable: false }
     }
+
+    // XXX Get rid of these setters if the fields are just public anyways?
 
     pub fn set_array(mut self, is_array: bool) -> TypeSpec {
         self.array = is_array;
@@ -55,12 +82,16 @@ impl TypeSpec {
         self.nullable = is_nullable;
         self
     }
+
+    pub fn loc(&self) -> &Location {
+        self.spec.loc()
+    }
 }
 
 #[derive(Debug)]
 pub struct Param {
-    name: Identifier,
-    type_spec: TypeSpec,
+    pub name: Identifier,
+    pub type_spec: TypeSpec,
 }
 
 impl Param {
@@ -71,8 +102,8 @@ impl Param {
 
 #[derive(Debug)]
 pub struct StructField {
-    type_spec: TypeSpec,
-    name: Identifier,
+    pub type_spec: TypeSpec,
+    pub name: Identifier,
 }
 
 impl StructField {
@@ -101,7 +132,7 @@ impl Namespace {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Compress {
     None,
     Enabled,
@@ -114,21 +145,49 @@ pub enum MessageModifier {
     Compress(Compress),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SendSemantics {
     Async,
     Sync,
     Intr,
 }
 
-#[derive(Debug)]
+impl SendSemantics {
+    pub fn is_async(&self) -> bool {
+        self == &SendSemantics::Async
+    }
+
+    pub fn is_sync(&self) -> bool {
+        self == &SendSemantics::Sync
+    }
+
+    pub fn is_intr(&self) -> bool {
+        self == &SendSemantics::Intr
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Nesting {
     None,
     InsideSync,
     InsideCpow,
 }
 
-#[derive(Debug)]
+impl Nesting {
+    pub fn is_none(&self) -> bool {
+        self == &Nesting::None
+    }
+
+    pub fn inside_sync(&self) -> bool {
+        self == &Nesting::InsideSync
+    }
+
+    pub fn inside_cpow(&self) -> bool {
+        self == &Nesting::InsideCpow
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Priority {
     Normal,
     High,
@@ -139,6 +198,20 @@ pub enum Direction {
     ToParent,
     ToChild,
     ToParentOrChild,
+}
+
+impl Direction {
+    pub fn is_to_parent(&self) -> bool {
+        self == &Direction::ToParent
+    }
+
+    pub fn is_to_child(&self) -> bool {
+        self == &Direction::ToChild
+    }
+
+    pub fn is_both(&self) -> bool {
+        self == &Direction::ToParentOrChild
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -168,6 +241,12 @@ impl Identifier {
     }
 }
 
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
+
 #[derive(Debug)]
 pub struct MessageDecl {
     pub name: Identifier,
@@ -175,10 +254,10 @@ pub struct MessageDecl {
     pub nested: Nesting,
     pub prio: Priority,
     pub direction: Direction,
-    in_params: Vec<Param>,
-    out_params: Vec<Param>,
-    compress: Compress,
-    verify: bool,
+    pub in_params: Vec<Param>,
+    pub out_params: Vec<Param>,
+    pub compress: Compress,
+    pub verify: bool,
 }
 
 impl MessageDecl {
@@ -216,8 +295,8 @@ impl MessageDecl {
 
 #[derive(Debug)]
 pub struct Protocol {
-    send_semantics: SendSemantics,
-    nested: Nesting,
+    pub send_semantics: SendSemantics,
+    pub nested: Nesting,
     pub managers: Vec<Identifier>,
     pub manages: Vec<Identifier>,
     pub messages: Vec<MessageDecl>,
