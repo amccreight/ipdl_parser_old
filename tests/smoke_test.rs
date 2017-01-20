@@ -37,12 +37,8 @@ fn test_files(test_file_path: &str, should_pass: bool) {
             }
 
             let file_names = vec![entry.path()];
-            let tus = ipdl_parser::parser::parse(&include_dirs, file_names);
-            if should_pass {
-                assert!(tus.is_some());
-            } else {
-                assert!(tus.is_none());
-            }
+            let ok = ipdl_parser::compiler::compile(&include_dirs, file_names);
+            assert!(should_pass == ok);
         }
     }
 }
