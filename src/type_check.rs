@@ -5,53 +5,6 @@
 use ast::*;
 
 
-const BUILTIN_TYPES: &'static [ &'static str ] = &[
-    // C types
-    "bool",
-    "char",
-    "short",
-    "int",
-    "long",
-    "float",
-    "double",
-
-    // stdint types
-    "int8_t",
-    "uint8_t",
-    "int16_t",
-    "uint16_t",
-    "int32_t",
-    "uint32_t",
-    "int64_t",
-    "uint64_t",
-    "intptr_t",
-    "uintptr_t",
-
-    // stddef types
-    "size_t",
-    "ssize_t",
-
-    // Mozilla types: "less" standard things we know how serialize/deserialize
-    "nsresult",
-    "nsString",
-    "nsCString",
-    "mozilla::ipc::Shmem",
-    "mozilla::ipc::FileDescriptor"
-];
-
-fn builtin_from_string(tname: &str) -> TypeSpec {
-    TypeSpec::new(QualifiedId::new_from_iter(tname.split("::")))
-}
-
-// XXX This may not really need to be a function.
-fn make_builtin_using() -> Vec<TypeSpec> {
-    let mut v = Vec::new();
-    for t in BUILTIN_TYPES {
-        v.push(builtin_from_string(t));
-    };
-    v
-}
-
 fn gather_decls(tu: &TranslationUnit) -> Result<(), String> {
     // XXX Pass in builtin_using?
 
