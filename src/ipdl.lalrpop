@@ -5,7 +5,7 @@
 use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier, MessageDecl,
           MessageModifier, Namespace, Nesting, Param, Priority,
           Protocol, QualifiedId, SendSemantics, StructField,
-          StructOrUnion, TranslationUnit, TypeSpec, UsingStmt};
+          TranslationUnit, TypeSpec, UsingStmt};
 
 use parser::{TopLevelDecl, ParserState, PreambleStmt};
 
@@ -38,16 +38,20 @@ pub TranslationUnit: TranslationUnit = {
         }
 
         let mut protocol = None;
-        let mut structs_and_unions = Vec::new();
+        let mut structs = Vec::new();
+        let mut unions = Vec::new();
+        let mut last_is_struct = false;
 
         for nts in ns {
             for (ns, d) in nts {
                 match d {
                     TopLevelDecl::Struct(s) => {
-                        structs_and_unions.push((ns, StructOrUnion::Struct(s)));
+                        structs.push((ns, s));
+                        last_is_struct = true;
                     },
                     TopLevelDecl::Union(u) => {
-                        structs_and_unions.push((ns, StructOrUnion::Union(u)));
+                        unions.push((ns, u));
+                        last_is_struct = false;
                     },
                     TopLevelDecl::Protocol(p) => {
                         // XXX Throw a proper parsing error.
@@ -72,7 +76,11 @@ pub TranslationUnit: TranslationUnit = {
                 // There's not really a canonical "thing" in headers. So
                 // somewhat arbitrarily use the namespace of the last
                 // interesting thing that was declared.
-                structs_and_unions.last().unwrap().0.clone(),
+                if last_is_struct {
+                    structs.last().unwrap().0.clone()
+                } else {
+                    unions.last().unwrap().0.clone()
+                }
         };
 
         TranslationUnit {
@@ -82,7 +90,8 @@ pub TranslationUnit: TranslationUnit = {
             cxx_includes: cxx_includes,
             includes: includes,
             using: using,
-            structs_and_unions: structs_and_unions,
+            structs: structs,
+            unions: unions,
             protocol: protocol
         }
     }

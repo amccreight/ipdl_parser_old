@@ -244,12 +244,6 @@ pub struct UsingStmt {
     pub kind: Option<CxxTypeKind>,
 }
 
-#[derive(Debug)]
-pub enum StructOrUnion {
-    Struct(Vec<StructField>),
-    Union(Vec<TypeSpec>),
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum FileType {
     Protocol,
@@ -277,8 +271,8 @@ pub struct TranslationUnit {
     pub file_name: PathBuf,
     pub cxx_includes: Vec<String>,
     pub includes: Vec<String>,
-    // XXX builtin_using
     pub using: Vec<UsingStmt>,
-    pub structs_and_unions: Vec<(Namespace, StructOrUnion)>,
+    pub structs: Vec<(Namespace, Vec<StructField>)>,
+    pub unions: Vec<(Namespace, Vec<TypeSpec>)>,
     pub protocol: Option<(Namespace, Protocol)>,
 }
