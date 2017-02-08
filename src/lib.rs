@@ -1,3 +1,4 @@
+mod errors;
 pub mod ast;
 mod ipdl;
 pub mod parser;
