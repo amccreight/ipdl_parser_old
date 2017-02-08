@@ -7,11 +7,8 @@ const BASE_PATH: [&'static str; 2] = [".", "tests"];
 const OK_PATH: &'static str = "ok";
 const ERROR_PATH: &'static str = "error";
 
-// error/twoprotocols.ipdl is disabled because of Issue #1.
-
-// The other tests in error/ are disabled because the given checking
-// is not enabled yet. Part of the issue is that the smoke tester only
-// runs the parser.
+// Tests in error/ are disabled because the given checking is not
+// enabled yet.
 
 fn test_files(test_file_path: &str, should_pass: bool) {
     let mut path: PathBuf = BASE_PATH.iter().collect();
@@ -28,9 +25,7 @@ fn test_files(test_file_path: &str, should_pass: bool) {
                 // XXX What should happen here is that instead of
                 // continuing, we check to make sure that the test
                 // passes. That way, if somebody fixes the IPDL
-                // compiler, we'll get an error. However, for some
-                // tests, like twoprotocols.ipdl, the error is not
-                // handled gracefully. See issue #1.
+                // compiler, we'll get an error.
                 continue;
             } else {
                 println!("Testing {:?}", entry.file_name());
