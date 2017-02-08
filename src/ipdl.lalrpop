@@ -54,11 +54,12 @@ pub TranslationUnit: TranslationUnit = {
                         last_is_struct = false;
                     },
                     TopLevelDecl::Protocol(p) => {
-                        // XXX Throw a proper parsing error.
                         if protocol.is_some() {
-                            panic!("Only one protocol definition per file.");
+                            parser_state.add_error(&ns.name.loc,
+                                                   "Only one protocol definition per file.");
+                        } else {
+                            protocol = Some((ns, p));
                         }
-                        protocol = Some((ns, p));
                     },
                 }
             }
@@ -191,7 +192,8 @@ ProtocolDefn: (Namespace, Protocol) = {
     {
 
         if let FileType::Header = parser_state.file_type {
-            panic!("Can't define a protocol in a header. Do it in a protocol spec instead.");
+            parser_state.add_error(&name.loc,
+                                   "Can't define a protocol in a header. Do it in a protocol spec instead.");
         }
 
         let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
@@ -245,11 +247,14 @@ MessageDecl: MessageDecl = {
 
         // XXX Why isn't direction set in MessageBody? Then it might
         // not need to be an Option.
-        if parser_state.direction.get().is_none() {
-            // XXX Surely there's a better way to do this.
-            panic!("Missing message direction.");
-        }
-        msg.direction = parser_state.direction.get().unwrap().clone();
+        msg.direction = match parser_state.direction.get() {
+            Some(d) => d,
+            None => {
+                parser_state.add_error(&msg.name.loc,
+                                       "Missing message direction.");
+                Direction::ToParent // Dummy value.
+            }
+        };
 
         msg
     },

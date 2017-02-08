@@ -7,13 +7,14 @@ use self::__lalrpop_util::ParseError as ParseError;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use ast::{Direction, FileType, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt, Location};
 use ipdl::parse_TranslationUnit;
+use errors::Errors;
 
 use uncommenter::uncomment;
 
@@ -23,6 +24,7 @@ pub struct ParserState {
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
+    pub errors: RefCell<Errors>,
     newline_offsets: Vec<usize>,
 }
 
@@ -47,6 +49,7 @@ impl ParserState {
             file_type: file_type,
             file_name: PathBuf::from(file_name),
             direction: Cell::new(None),
+            errors: RefCell::new(Errors::none()),
             newline_offsets: newline_offsets,
         }
     }
@@ -67,6 +70,10 @@ impl ParserState {
                 }
             }
         }
+    }
+
+    pub fn add_error(&self, loc: &Location, error: &str) {
+        self.errors.borrow_mut().append_one(&loc, error);
     }
 }
 
@@ -132,6 +139,10 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
                     panic!("Unexpected user error.");
                 },
             }})
+        .and_then(|tu| {
+            let ref errors = *&parser_state.errors.borrow();
+            errors.to_result().map(|_| tu)
+        })
 }
 
 
