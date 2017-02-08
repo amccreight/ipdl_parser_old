@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier, MessageDecl,
-          MessageModifier, Namespace, Nesting, Param, Priority,
-          Protocol, QualifiedId, SendSemantics, StructField,
-          TranslationUnit, TypeSpec, UsingStmt};
+use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier,
+          Location, MessageDecl, MessageModifier, Namespace, Nesting,
+          Param, Priority, Protocol, QualifiedId, SendSemantics,
+          StructField, TranslationUnit, TypeSpec, UsingStmt};
 
 use parser::{TopLevelDecl, ParserState, PreambleStmt};
 
@@ -65,8 +65,10 @@ pub TranslationUnit: TranslationUnit = {
             }
         }
 
-        assert!(protocol.is_none() || parser_state.file_type == FileType::Protocol);
-        assert!(protocol.is_some() || parser_state.file_type == FileType::Header);
+        if protocol.is_none() && parser_state.file_type == FileType::Protocol {
+            parser_state.add_error(&Location { lineno: 0, colno: 0 },
+                                   "Protocol file must contain a protocol.");
+        }
 
         // The "canonical" namespace of the translation unit, ie what
         // it's considered to be in for the purposes of C++:
