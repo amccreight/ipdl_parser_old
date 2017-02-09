@@ -8,7 +8,7 @@ use std::fmt;
 #[derive(Debug)]
 pub struct QualifiedId {
     pub base_id: Identifier,
-    pub quals: Vec<Identifier>
+    pub quals: Vec<String>,
 }
 
 impl QualifiedId {
@@ -17,7 +17,7 @@ impl QualifiedId {
     }
 
     pub fn qualify(mut self, id: Identifier) -> QualifiedId {
-        self.quals.push(self.base_id);
+        self.quals.push(self.base_id.id);
         self.base_id = id;
         self
     }
@@ -84,7 +84,7 @@ impl StructField {
 #[derive(Clone, Debug)]
 pub struct Namespace {
     pub name: Identifier,
-    pub namespaces: Vec<Identifier>,
+    pub namespaces: Vec<String>,
 }
 
 impl Namespace {
@@ -92,8 +92,8 @@ impl Namespace {
         Namespace { name: name, namespaces: Vec::new() }
     }
 
-    pub fn add_outer_namespace(&mut self, namespace: &Identifier) {
-        self.namespaces.insert(0, namespace.clone());
+    pub fn add_outer_namespace(&mut self, namespace: &str) {
+        self.namespaces.insert(0, String::from(namespace));
     }
 
     pub fn qname(&self) -> QualifiedId {
