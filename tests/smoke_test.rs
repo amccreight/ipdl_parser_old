@@ -25,7 +25,6 @@ const DISABLED_TESTS: &'static [ &'static str ] = &[
     "managerNoCtor.ipdl",
     "managerNoDtor.ipdl",
     "manageSelfToplevel.ipdl",
-    "messageNoDirection.ipdl",
     "multimanDupMgrs.ipdl",
     "multimanDupMgrsMgr.ipdl",
     "multimanNonexistentMgrs.ipdl",
@@ -68,21 +67,17 @@ fn test_files(test_file_path: &str, should_pass: bool) {
     let entries = fs::read_dir(&path).expect("Should have the test file directory");
     for entry in entries {
         if let Ok(entry) = entry {
-
+            let mut expected_result = should_pass;
             if !should_pass && disabled_tests.contains(entry.path().file_name().unwrap()) {
-                println!("Skipping {:?}", entry.file_name());
-                // XXX What should happen here is that instead of
-                // continuing, we check to make sure that the test
-                // passes. That way, if somebody fixes the IPDL
-                // compiler, we'll get an error.
-                continue;
+                println!("Expecting test to pass when it should fail {:?}", entry.file_name());
+                expected_result = true;
             } else {
                 println!("Testing {:?}", entry.file_name());
             }
 
             let file_names = vec![entry.path()];
             let ok = ipdl_parser::compiler::compile(&include_dirs, file_names);
-            assert!(should_pass == ok);
+            assert!(expected_result == ok);
         }
     }
 }
