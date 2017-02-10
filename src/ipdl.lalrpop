@@ -324,7 +324,7 @@ ProtocolSendSemanticsQual: (Nesting, SendSemantics) = {
     "async" => (Nesting::None, SendSemantics::Async),
     "sync" => (Nesting::None, SendSemantics::Sync),
     "nested" "(" "upto" <n:Nesting> ")" "async" => (n, SendSemantics::Async),
-    "nested" "(" "upto" <n:Nesting> ")" "sync" => (n, SendSemantics::Async),
+    "nested" "(" "upto" <n:Nesting> ")" "sync" => (n, SendSemantics::Sync),
     "intr" => (Nesting::None, SendSemantics::Intr),
 };
 
