@@ -198,8 +198,8 @@ ProtocolDefn: (Namespace, Protocol) = {
                                    "Can't define a protocol in a header. Do it in a protocol spec instead.");
         }
 
-        let (nesting, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
-        (Namespace::new(name), Protocol::new(send_semantics, nesting, managers, manages, decls))
+        let (nested, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
+        (Namespace::new(name), Protocol::new(send_semantics, nested, managers, manages, decls))
     },
 };
 
@@ -243,7 +243,7 @@ MessageDirectionLabel : () = {
 MessageDecl: MessageDecl = {
     <qual:SendSemanticsQual> <msg:MessageBody> => {
         let mut msg = msg;
-        msg.nesting = qual.0;
+        msg.nested = qual.0;
         msg.prio = qual.1;
         msg.send_semantics = qual.2;
 

@@ -172,7 +172,7 @@ impl Identifier {
 pub struct MessageDecl {
     pub name: Identifier,
     pub send_semantics: SendSemantics,
-    pub nesting: Nesting,
+    pub nested: Nesting,
     pub prio: Priority,
     pub direction: Direction,
     in_params: Vec<Param>,
@@ -186,7 +186,7 @@ impl MessageDecl {
         MessageDecl {
             name: name,
             send_semantics: SendSemantics::Async,
-            nesting: Nesting::None,
+            nested: Nesting::None,
             prio: Priority::Normal,
             direction: Direction::ToParent,
             in_params: Vec::new(),
@@ -217,16 +217,16 @@ impl MessageDecl {
 #[derive(Debug)]
 pub struct Protocol {
     send_semantics: SendSemantics,
-    nesting: Nesting,
+    nested: Nesting,
     pub managers: Vec<Identifier>,
     pub manages: Vec<Identifier>,
     pub messages: Vec<MessageDecl>,
 }
 
 impl Protocol {
-    pub fn new(send_semantics: SendSemantics, nesting: Nesting,
+    pub fn new(send_semantics: SendSemantics, nested: Nesting,
                managers: Vec<Identifier>, manages: Vec<Identifier>, decls: Vec<MessageDecl>) -> Protocol {
-        Protocol { send_semantics: send_semantics, nesting: nesting,
+        Protocol { send_semantics: send_semantics, nested: nested,
                    managers: managers, manages: manages, messages: decls }
     }
 }
