@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 use ast::{Direction, FileType, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt, Location};
 use ipdl::parse_TranslationUnit;
 use errors::Errors;
-use utils::resolve_include_path;
 
 use uncommenter::uncomment;
 
@@ -42,13 +41,22 @@ impl ParserState {
     }
 
     pub fn resolve_include_path(&self, loc: &Location, file: &str) -> PathBuf {
-        if let Some(pb) = resolve_include_path(&self.include_dirs, Path::new(&file)) {
-            pb
-        } else {
-            self.add_error(&loc,
-                           &format!("Error: can't locate include file `{}'", &file));
-            PathBuf::from("<file not found>")
+        // XXX The Python parser also checks '' for some reason.
+        let file_path = Path::new(&file);
+        for d in &self.include_dirs {
+            let mut p = d.clone();
+            p.push(file_path);
+
+            if p.exists() {
+                if let Ok(pb) = p.canonicalize() {
+                    return pb
+                }
+            }
         }
+
+        self.add_error(&loc,
+                       &format!("Error: can't locate include file `{}'", &file));
+        PathBuf::from("<file not found>")
     }
 
     pub fn resolve_location(&self, byte_offset: usize) -> Location {
