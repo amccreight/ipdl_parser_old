@@ -49,11 +49,12 @@ impl ParserState {
         match self.newline_offsets.binary_search(&byte_offset) {
             Ok(r) => panic!("Token should not start or end on a newline: {}, {}", byte_offset, r),
             Err(index) => {
+                let file_name = self.file_name.clone();
                 if index == 0 {
-                    Location { lineno: 1, colno: byte_offset }
+                    Location { file_name: file_name, lineno: 1, colno: byte_offset }
                 } else {
                     let line_start_offset = self.newline_offsets[index - 1] + 1;
-                    Location { lineno: index + 1, colno: byte_offset - line_start_offset }
+                    Location { file_name: file_name, lineno: index + 1, colno: byte_offset - line_start_offset }
                 }
             }
         }

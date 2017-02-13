@@ -66,7 +66,7 @@ pub TranslationUnit: TranslationUnit = {
         }
 
         if protocol.is_none() && parser_state.file_type == FileType::Protocol {
-            parser_state.add_error(&Location { lineno: 0, colno: 0 },
+            parser_state.add_error(&Location { file_name: parser_state.file_name.clone(), lineno: 0, colno: 0 },
                                    "Protocol file must contain a protocol.");
         }
 

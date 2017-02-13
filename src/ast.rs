@@ -25,7 +25,7 @@ impl QualifiedId {
     pub fn new_from_iter<'a, I> (mut ids: I) -> QualifiedId
         where I: Iterator<Item=&'a str>
     {
-        let loc = Location { lineno: 0, colno: 0 };
+        let loc = Location { file_name: PathBuf::from("<builtin>"), lineno: 0, colno: 0 };
         let mut qual_id = QualifiedId::new(Identifier::new(String::from(ids.next().unwrap()), loc.clone()));
         for i in ids {
             qual_id = qual_id.qualify(Identifier::new(String::from(i), loc.clone()));
@@ -216,13 +216,14 @@ impl Direction {
 
 #[derive(Debug, Clone)]
 pub struct Location {
+    pub file_name: PathBuf,
     pub lineno: usize,
     pub colno: usize,
 }
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.lineno, self.colno)
+        write!(f, "{} {}:{}", self.file_name.display(), self.lineno, self.colno)
     }
 }
 
