@@ -41,6 +41,10 @@ impl ParserState {
         }
     }
 
+    pub fn resolve_include_path(&self, file_path: &Path) -> Option<PathBuf> {
+        resolve_include_path(&self.include_dirs, file_path)
+    }
+
     pub fn resolve_location(&self, byte_offset: usize) -> Location {
         match self.newline_offsets.binary_search(&byte_offset) {
             Ok(r) => panic!("Token should not start or end on a newline: {}, {}", byte_offset, r),
