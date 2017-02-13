@@ -121,14 +121,13 @@ CxxIncludeStmt: PreambleStmt = {
 
 IncludeStmt: PreambleStmt = {
     "include" <p:"protocol"?> <id:Identifier> => {
-        // XXX This should store the location somewhere.
         let mut file = id.id;
         file.push_str(".ipdl");
         if !p.is_some() {
             file.push_str("h");
         }
 
-        PreambleStmt::Include(file)
+        PreambleStmt::Include(parser_state.resolve_include_path(&id.loc, &file))
     }
 };
 

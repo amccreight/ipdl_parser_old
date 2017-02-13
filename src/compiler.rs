@@ -16,7 +16,7 @@ pub fn compile(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> bool {
     }
 
     let tus = maybe_tus.unwrap();
-    if let Err(err) = type_check::check(&include_dirs, &tus) {
+    if let Err(err) = type_check::check(&tus) {
         println!("Error(s) during type checking.\n{}", err);
         return false;
     }

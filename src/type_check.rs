@@ -3,9 +3,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use utils::resolve_include_path;
 use ast::*;
 use errors::Errors;
 
@@ -757,8 +756,7 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
 }
 
 
-fn gather_decls_tu(include_dirs: &Vec<PathBuf>,
-                   tus: &HashMap<PathBuf, TranslationUnit>,
+fn gather_decls_tu(tus: &HashMap<PathBuf, TranslationUnit>,
                    tuts: &mut HashMap<PathBuf, TranslationUnitType>,
                    pb: &PathBuf,
                    tu: &TranslationUnit) -> Result<(), String> {
@@ -771,8 +769,7 @@ fn gather_decls_tu(include_dirs: &Vec<PathBuf>,
     }
 
     // Add the declarations from all the IPDL files we include.
-    for file_name in &tu.includes {
-        let include_pb = resolve_include_path(include_dirs, Path::new(&file_name)).unwrap();
+    for include_pb in &tu.includes {
         let include_tu = tus.get(include_pb.as_path()).unwrap();
         match include_tu.protocol {
             Some(ref p) =>
@@ -1170,8 +1167,7 @@ pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
 }
 
 
-pub fn check(include_dirs: &Vec<PathBuf>,
-             tus: &HashMap<PathBuf, TranslationUnit>) -> Result<(), String> {
+pub fn check(tus: &HashMap<PathBuf, TranslationUnit>) -> Result<(), String> {
     let mut tuts = HashMap::new();
 
     // XXX This ordering should be deterministic. I could sort by the
@@ -1188,7 +1184,7 @@ pub fn check(include_dirs: &Vec<PathBuf>,
     }
 
     for &(pb, tu) in &tus_vec {
-        try!(gather_decls_tu(&include_dirs, &tus, &mut tuts, &pb, &tu));
+        try!(gather_decls_tu(&tus, &mut tuts, &pb, &tu));
     }
 
     let tuts_vec = tuts.iter().collect::<Vec<_>>();

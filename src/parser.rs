@@ -41,8 +41,14 @@ impl ParserState {
         }
     }
 
-    pub fn resolve_include_path(&self, file_path: &Path) -> Option<PathBuf> {
-        resolve_include_path(&self.include_dirs, file_path)
+    pub fn resolve_include_path(&self, loc: &Location, file: &str) -> PathBuf {
+        if let Some(pb) = resolve_include_path(&self.include_dirs, Path::new(&file)) {
+            pb
+        } else {
+            self.add_error(&loc,
+                           &format!("Error: can't locate include file `{}'", &file));
+            PathBuf::from("<file not found>")
+        }
     }
 
     pub fn resolve_location(&self, byte_offset: usize) -> Location {
@@ -67,7 +73,7 @@ impl ParserState {
 
 pub enum PreambleStmt {
     CxxInclude(String),
-    Include(String),
+    Include(PathBuf),
     Using(UsingStmt),
 }
 
@@ -175,21 +181,13 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
             };
 
             for i in &tu.includes {
-                let p = match resolve_include_path(include_dirs, Path::new(&i)) {
-                    Some(p) => p,
-                    None => {
-                        print_include_context(&include_context);
-                        println!("Error: can't locate include file `{}'", i);
-                        return None
-                    },
-                };
-                if visited.contains(&p) {
+                if visited.contains(i) {
                     continue;
                 }
                 let mut new_context = include_context.clone();
                 new_context.push(curr_file.clone());
-                visited.insert(p.clone());
-                new_work_list.push((p, new_context));
+                visited.insert(i.clone());
+                new_work_list.push((i.clone(), new_context));
             }
 
             parsed.insert(curr_file.clone(), tu);

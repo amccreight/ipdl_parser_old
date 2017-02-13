@@ -350,7 +350,7 @@ pub struct TranslationUnit {
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub cxx_includes: Vec<String>,
-    pub includes: Vec<String>,
+    pub includes: Vec<PathBuf>,
     pub using: Vec<UsingStmt>,
     pub structs: Vec<(Namespace, Vec<StructField>)>,
     pub unions: Vec<(Namespace, Vec<TypeSpec>)>,
