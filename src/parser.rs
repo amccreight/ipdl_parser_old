@@ -145,9 +145,9 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
     // context of every file in the work list.
 
     for f in file_names {
-        let fc = match resolve_include_path(&vec![PathBuf::from("")], &f) {
-            Some(fc) => fc,
-            None => {
+        let fc = match f.canonicalize() {
+            Ok(fc) => fc,
+            Err(_) => {
                 println!("Error: can't locate file specified on the command line `{}'", f.display());
                 return None
             },
