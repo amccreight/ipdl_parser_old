@@ -344,13 +344,16 @@ impl FileType {
     }
 }
 
+// Translation unit identifier.
+pub type TUId = i32;
+
 #[derive(Debug)]
 pub struct TranslationUnit {
     pub namespace: Namespace,
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub cxx_includes: Vec<String>,
-    pub includes: Vec<PathBuf>,
+    pub includes: Vec<TUId>,
     pub using: Vec<UsingStmt>,
     pub structs: Vec<(Namespace, Vec<StructField>)>,
     pub unions: Vec<(Namespace, Vec<TypeSpec>)>,

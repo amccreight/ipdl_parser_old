@@ -3,8 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-
 use ast::*;
 use errors::Errors;
 
@@ -53,23 +51,23 @@ const CONSTRUCTOR_SUFFIX: &'static str = "Constructor";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TypeRef {
-    file: PathBuf,
+    tu: TUId,
     index: usize,
 }
 
 impl TypeRef {
-    fn new(file: &PathBuf, index: usize) -> TypeRef {
-        TypeRef { file: file.clone(), index: index }
+    fn new(tu: &TUId, index: usize) -> TypeRef {
+        TypeRef { tu: tu.clone(), index: index }
     }
 
     fn lookup_struct<'a>(&self,
-                         tuts: &'a HashMap<PathBuf, TranslationUnitType>) -> &'a StructTypeDef {
-        &tuts.get(&self.file).unwrap().structs[self.index]
+                         tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a StructTypeDef {
+        &tuts.get(&self.tu).unwrap().structs[self.index]
     }
 
     fn lookup_union<'a>(&self,
-                         tuts: &'a HashMap<PathBuf, TranslationUnitType>) -> &'a UnionTypeDef {
-        &tuts.get(&self.file).unwrap().unions[self.index]
+                         tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a UnionTypeDef {
+        &tuts.get(&self.tu).unwrap().unions[self.index]
     }
 }
 
@@ -80,8 +78,8 @@ impl TypeRef {
 enum IPDLType {
     ImportedCxxType(QualifiedId),
     MessageType(TypeRef),
-    ProtocolType(PathBuf),
-    ActorType(PathBuf, bool /* nullable */),
+    ProtocolType(TUId),
+    ActorType(TUId, bool /* nullable */),
     StructType(TypeRef),
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
@@ -167,8 +165,8 @@ impl UnionTypeDef {
 
 #[derive(Debug, Clone)]
 enum MessageType {
-    Ctor(PathBuf),
-    Dtor(PathBuf),
+    Ctor(TUId),
+    Dtor(TUId),
     Other,
 }
 
@@ -180,9 +178,9 @@ impl MessageType {
         }
     }
 
-    fn constructed_type(&self) -> &PathBuf {
+    fn constructed_type(&self) -> &TUId {
         match self {
-            &MessageType::Ctor(ref pb) => pb,
+            &MessageType::Ctor(ref tuid) => tuid,
             _ => panic!("Tried to get constructed type on non-Ctor"),
         }
     }
@@ -261,7 +259,7 @@ impl MessageTypeDef {
         self.mtype.is_ctor()
     }
 
-    fn constructed_type(&self) -> &PathBuf {
+    fn constructed_type(&self) -> &TUId {
         self.mtype.constructed_type()
     }
 
@@ -299,8 +297,8 @@ struct ProtocolTypeDef {
     qname: QualifiedId,
     send_semantics: SendSemantics,
     nested: Nesting,
-    managers: Vec<PathBuf>,
-    manages: Vec<PathBuf>,
+    managers: Vec<TUId>,
+    manages: Vec<TUId>,
     messages: Vec<MessageTypeDef>,
     has_delete: bool,
     has_reentrant_delete: bool,
@@ -446,7 +444,7 @@ impl TranslationUnitType {
 
 
 fn declare_protocol(sym_tab: &mut SymbolTable,
-                    pb: &PathBuf,
+                    pb: &TUId,
                     ns: &Namespace) -> Errors {
     let mut errors = Errors::none();
 
@@ -479,7 +477,7 @@ fn declare_usings(mut sym_tab: &mut SymbolTable,
 
 
 fn declare_structs_and_unions(sym_tab: &mut SymbolTable,
-                              pb: &PathBuf,
+                              pb: &TUId,
                               tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
     let mut index = 0;
@@ -600,7 +598,7 @@ fn gather_decls_manages(sym_tab: &mut SymbolTable,
 
 
 fn gather_decls_message(mut sym_tab: &mut SymbolTable,
-                        pb: &PathBuf,
+                        pb: &TUId,
                         protocol_type: &mut ProtocolTypeDef,
                         md: &MessageDecl) -> Errors {
     let mut errors = Errors::none();
@@ -676,7 +674,7 @@ fn gather_decls_message(mut sym_tab: &mut SymbolTable,
 }
 
 fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
-                         pb: &PathBuf,
+                         pb: &TUId,
                          p: &(Namespace, Protocol),
                          mut p_type: &mut ProtocolTypeDef) -> Errors {
     let mut errors = Errors::none();
@@ -756,28 +754,28 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
 }
 
 
-fn gather_decls_tu(tus: &HashMap<PathBuf, TranslationUnit>,
-                   tuts: &mut HashMap<PathBuf, TranslationUnitType>,
-                   pb: &PathBuf,
+fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
+                   tuts: &mut HashMap<TUId, TranslationUnitType>,
+                   tuid: &TUId,
                    tu: &TranslationUnit) -> Result<(), String> {
     let mut errors = Errors::none();
     let mut sym_tab = SymbolTable::new();
-    let mut tut = &mut tuts.get_mut(pb.as_path()).unwrap();
+    let mut tut = &mut tuts.get_mut(tuid).unwrap();
 
     if let &Some(ref p) = &tu.protocol {
-        errors.append(declare_protocol(&mut sym_tab, &pb, &p.0));
+        errors.append(declare_protocol(&mut sym_tab, &tuid, &p.0));
     }
 
     // Add the declarations from all the IPDL files we include.
-    for include_pb in &tu.includes {
-        let include_tu = tus.get(include_pb.as_path()).unwrap();
+    for include_tuid in &tu.includes {
+        let include_tu = tus.get(include_tuid).unwrap();
         match include_tu.protocol {
             Some(ref p) =>
-                errors.append(declare_protocol(&mut sym_tab, &include_pb, &p.0)),
+                errors.append(declare_protocol(&mut sym_tab, &include_tuid, &p.0)),
             None => {
                 // This is a header.  Import its "exported" globals into our scope.
                 errors.append(declare_usings(&mut sym_tab, &include_tu));
-                errors.append(declare_structs_and_unions(&mut sym_tab, &include_pb, &include_tu));
+                errors.append(declare_structs_and_unions(&mut sym_tab, &include_tuid, &include_tu));
             },
         }
     }
@@ -801,7 +799,7 @@ fn gather_decls_tu(tus: &HashMap<PathBuf, TranslationUnit>,
 
     // Forward declare all structs and unions in order to support
     // recursive definitions.
-    errors.append(declare_structs_and_unions(&mut sym_tab, &pb, &tu));
+    errors.append(declare_structs_and_unions(&mut sym_tab, &tuid, &tu));
 
     // Check definitions of structs and unions.
     // XXX It might be cleaner to do a zip iteration over {tu,tut}.structs
@@ -821,7 +819,7 @@ fn gather_decls_tu(tus: &HashMap<PathBuf, TranslationUnit>,
     // sense.
 
     if let &Some(ref p) = &tu.protocol {
-        errors.append(gather_decls_protocol(&mut sym_tab, &pb, &p, &mut tut.protocol.as_mut().unwrap()));
+        errors.append(gather_decls_protocol(&mut sym_tab, &tuid, &p, &mut tut.protocol.as_mut().unwrap()));
     }
 
     errors.to_result()
@@ -846,7 +844,7 @@ enum CompoundType {
      defined(struct f1 f2...)  := defined(f1) and defined(f2) and ...
      defined(union c1 c2 ...)  := defined(c1) or defined(c2) or ...
  */
-fn fully_defined(tuts: &HashMap<PathBuf, TranslationUnitType>,
+fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
                  mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
                  t: &IPDLType) -> bool {
 
@@ -905,15 +903,15 @@ enum ManagerCycleState {
 }
 
 
-fn get_protocol_type<'a>(tuts: &'a HashMap<PathBuf, TranslationUnitType>,
-                         pb: &PathBuf) -> &'a ProtocolTypeDef
+fn get_protocol_type<'a>(tuts: &'a HashMap<TUId, TranslationUnitType>,
+                         pb: &TUId) -> &'a ProtocolTypeDef
 {
     tuts.get(pb).unwrap().protocol.as_ref().unwrap()
 }
 
-fn manager_cycle_error(tuts: &HashMap<PathBuf, TranslationUnitType>,
-                       v: &Vec<PathBuf>,
-                       pb: &PathBuf) -> Errors {
+fn manager_cycle_error(tuts: &HashMap<TUId, TranslationUnitType>,
+                       v: &Vec<TUId>,
+                       pb: &TUId) -> Errors {
     let mut errors = Errors::none();
     let mut found = false;
     for p in v {
@@ -933,10 +931,10 @@ fn manager_cycle_error(tuts: &HashMap<PathBuf, TranslationUnitType>,
     errors
 }
 
-fn protocol_managers_acyclic(tuts: &HashMap<PathBuf, TranslationUnitType>,
-                             mut visited: &mut HashMap<PathBuf, ManagerCycleState>,
-                             mut stack: &mut Vec<PathBuf>,
-                             pb: &PathBuf) -> Errors {
+fn protocol_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>,
+                             mut visited: &mut HashMap<TUId, ManagerCycleState>,
+                             mut stack: &mut Vec<TUId>,
+                             pb: &TUId) -> Errors {
     if let Some(state) = visited.get(pb) {
         return match state {
             &ManagerCycleState::Visiting => manager_cycle_error(&tuts, &stack, pb),
@@ -967,7 +965,7 @@ fn protocol_managers_acyclic(tuts: &HashMap<PathBuf, TranslationUnitType>,
     errors
 }
 
-fn protocols_managers_acyclic(tuts: &HashMap<PathBuf, TranslationUnitType>) -> Errors {
+fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Errors {
     let mut errors = Errors::none();
     let mut visited = HashMap::new();
     let mut stack = Vec::new();
@@ -1058,8 +1056,8 @@ fn check_types_message(ptype: &ProtocolTypeDef,
     errors
 }
 
-fn check_types_protocol(tuts: &HashMap<PathBuf, TranslationUnitType>,
-                        pb: &PathBuf,
+fn check_types_protocol(tuts: &HashMap<TUId, TranslationUnitType>,
+                        tuid: &TUId,
                         ptype: &ProtocolTypeDef) -> Errors {
     let mut errors = protocols_managers_acyclic(&tuts);
 
@@ -1071,7 +1069,7 @@ fn check_types_protocol(tuts: &HashMap<PathBuf, TranslationUnitType>,
                                        ptype.qname.short_name(), manager_type.qname.short_name()));
         }
 
-        if !manager_type.manages.contains(&pb) {
+        if !manager_type.manages.contains(&tuid) {
             errors.append_one(&manager_type.qname.loc(),
                               &format!("|manager| declaration in protocol `{}' does not match any |manages| declaration in protocol `{}'",
                                        ptype.qname.short_name(), manager_type.qname.short_name()));
@@ -1081,7 +1079,7 @@ fn check_types_protocol(tuts: &HashMap<PathBuf, TranslationUnitType>,
     for managee in &ptype.manages {
         let managee_type = get_protocol_type(&tuts, &managee);
 
-        if !managee_type.managers.contains(&pb) {
+        if !managee_type.managers.contains(&tuid) {
             errors.append_one(&managee_type.qname.loc(),
                               &format!("|manages| declaration in protocol `{}' does not match any |manager| declaration in protocol `{}'",
                                        ptype.qname.short_name(), managee_type.qname.short_name()));
@@ -1096,10 +1094,10 @@ fn check_types_protocol(tuts: &HashMap<PathBuf, TranslationUnitType>,
 }
 
 
-fn check_types_tu(tus: &HashMap<PathBuf, TranslationUnit>,
-                  tuts: &HashMap<PathBuf, TranslationUnitType>,
+fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
+                  tuts: &HashMap<TUId, TranslationUnitType>,
                   mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
-                  pb: &PathBuf,
+                  pb: &TUId,
                   tut: &TranslationUnitType) -> Result<(), String> {
     let mut errors = Errors::none();
 
@@ -1167,11 +1165,11 @@ pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
 }
 
 
-pub fn check(tus: &HashMap<PathBuf, TranslationUnit>) -> Result<(), String> {
+pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
     let mut tuts = HashMap::new();
 
     // XXX This ordering should be deterministic. I could sort by the
-    // PathBuf.
+    // TUId.
 
     let tus_vec = tus.iter().collect::<Vec<_>>();
 

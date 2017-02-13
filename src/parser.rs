@@ -12,15 +12,87 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use ast::{Direction, FileType, Protocol, StructField, TranslationUnit, TypeSpec, UsingStmt, Location};
+use ast::{Direction, FileType, Protocol, StructField, TUId, TranslationUnit, TypeSpec, UsingStmt, Location};
 use ipdl::parse_TranslationUnit;
 use errors::Errors;
 
 use uncommenter::uncomment;
 
 
-pub struct ParserState {
+pub struct TUIdFileMap {
+    next_id: TUId,
+    file_ids: HashMap<PathBuf, TUId>,
+    id_files: HashMap<TUId, PathBuf>,
+}
+
+impl TUIdFileMap {
+    fn new() -> TUIdFileMap {
+        TUIdFileMap {
+            next_id: 0,
+            file_ids: HashMap::new(),
+            id_files: HashMap::new(),
+        }
+    }
+
+    fn resolve_file_name(&mut self, pb: &PathBuf) -> TUId {
+        if let Some(id) = self.file_ids.get(pb).cloned() {
+            return id;
+        }
+
+        let id = self.next_id;
+        self.next_id += 1;
+        self.file_ids.insert(pb.clone(), id);
+        self.id_files.insert(id, pb.clone());
+        id
+    }
+
+    fn id_file_name(&self, tuid: &TUId) -> &PathBuf {
+        self.id_files.get(tuid).unwrap()
+    }
+
+}
+
+pub struct IncludeResolver {
     include_dirs: Vec<PathBuf>,
+    include_files: HashMap<String, PathBuf>,
+    id_file_map: TUIdFileMap,
+}
+
+impl IncludeResolver {
+    fn new(include_dirs: Vec<PathBuf>) -> IncludeResolver {
+        IncludeResolver {
+            include_dirs: include_dirs,
+            include_files: HashMap::new(),
+            id_file_map: TUIdFileMap::new(),
+        }
+    }
+
+    fn resolve_include(&mut self, include: &str) -> Option<TUId> {
+        if let Some(ref pb) = self.include_files.get(include) {
+            return Some(self.id_file_map.resolve_file_name(&pb));
+        }
+
+        // XXX The Python parser also checks '' for some reason.
+        let file_path = Path::new(&include);
+        for d in &self.include_dirs {
+            let mut p = d.clone();
+            p.push(file_path);
+
+            if p.exists() {
+                if let Ok(pb) = p.canonicalize() {
+                    self.include_files.insert(String::from(include), pb.clone());
+                    return Some(self.id_file_map.resolve_file_name(&pb));
+                }
+            }
+        }
+
+        None
+    }
+
+}
+
+pub struct ParserState<'a> {
+    include_resolver: &'a RefCell<IncludeResolver>,
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
@@ -28,10 +100,11 @@ pub struct ParserState {
     newline_offsets: Vec<usize>,
 }
 
-impl ParserState {
-    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType, file_name: &Path, newline_offsets: Vec<usize>) -> ParserState {
+impl<'a> ParserState<'a> {
+    pub fn new(include_resolver: &'a RefCell<IncludeResolver>, file_type: FileType,
+               file_name: &Path, newline_offsets: Vec<usize>) -> ParserState<'a> {
         ParserState {
-            include_dirs: include_dirs,
+            include_resolver: include_resolver,
             file_type: file_type,
             file_name: PathBuf::from(file_name),
             direction: Cell::new(None),
@@ -40,23 +113,14 @@ impl ParserState {
         }
     }
 
-    pub fn resolve_include_path(&self, loc: &Location, file: &str) -> PathBuf {
-        // XXX The Python parser also checks '' for some reason.
-        let file_path = Path::new(&file);
-        for d in &self.include_dirs {
-            let mut p = d.clone();
-            p.push(file_path);
-
-            if p.exists() {
-                if let Ok(pb) = p.canonicalize() {
-                    return pb
-                }
-            }
+    pub fn resolve_include_path(&self, loc: &Location, file: &str) -> TUId {
+        if let Some(tuid) = self.include_resolver.borrow_mut().resolve_include(&file) {
+            return tuid
         }
 
         self.add_error(&loc,
                        &format!("Error: can't locate include file `{}'", &file));
-        PathBuf::from("<file not found>")
+        -1 // Dummy id
     }
 
     pub fn resolve_location(&self, byte_offset: usize) -> Location {
@@ -81,7 +145,7 @@ impl ParserState {
 
 pub enum PreambleStmt {
     CxxInclude(String),
-    Include(PathBuf),
+    Include(TUId),
     Using(UsingStmt),
 }
 
@@ -91,13 +155,13 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
-pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<TranslationUnit, String> {
-
+pub fn parse_file(include_resolver: &RefCell<IncludeResolver>, file_name: &PathBuf) -> Result<TranslationUnit, String> {
     // The file type and name are later enforced by the type checker.
     // This is just a hint to the parser.
     let file_type = FileType::from_file_path(&file_name).unwrap();
 
     let mut f = File::open(file_name).unwrap();
+
     let mut text = String::new();
     f.read_to_string(&mut text).unwrap();
     text = uncomment(&text);
@@ -112,7 +176,7 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
         offset += 1;
     }
 
-    let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name, newline_offsets);
+    let parser_state = ParserState::new(&include_resolver, file_type, file_name, newline_offsets);
     parse_TranslationUnit(&parser_state, &text)
         .map_err(|e| {
             match e {
@@ -149,19 +213,17 @@ pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<Trans
 
 
 fn print_include_context(include_context: &Vec<PathBuf>) {
-    for i in include_context {
-        println!("  in file included from `{}':", i.display());
+    for pb in include_context {
+        println!("  in file included from `{}':", pb.display());
     }
 }
 
-pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<PathBuf, TranslationUnit>> {
+pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<TUId, TranslationUnit>> {
     let mut work_list : Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
     let mut parsed = HashMap::new();
     let mut visited = HashSet::new();
 
-    // XXX For error reporting purposes, we should track the include
-    // context of every file in the work list.
-
+    let mut include_resolver = IncludeResolver::new(include_dirs.clone());
     for f in file_names {
         let fc = match f.canonicalize() {
             Ok(fc) => fc,
@@ -170,16 +232,20 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 return None
             },
         };
-        visited.insert(fc.clone());
+
+        let fid = include_resolver.id_file_map.resolve_file_name(&fc);
+        visited.insert(fid);
         work_list.push((fc, Vec::new()));
     }
+
+    let include_resolver_cell = RefCell::new(include_resolver);
 
     while !work_list.is_empty() {
         let mut new_work_list = Vec::new();
         for (curr_file, include_context) in work_list {
             // XXX In the long run, we probably don't want to output this.
             println!("Parsing file {}", curr_file.display());
-            let tu = match parse_file(&include_dirs, &curr_file) {
+            let tu = match parse_file(&include_resolver_cell, &curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
                     print_include_context(&include_context);
@@ -195,10 +261,11 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 let mut new_context = include_context.clone();
                 new_context.push(curr_file.clone());
                 visited.insert(i.clone());
-                new_work_list.push((i.clone(), new_context));
+                new_work_list.push((include_resolver_cell.borrow().id_file_map.id_file_name(i).clone(), new_context));
             }
 
-            parsed.insert(curr_file.clone(), tu);
+            let curr_id = include_resolver_cell.borrow_mut().id_file_map.resolve_file_name(&curr_file);
+            parsed.insert(curr_id, tu);
         }
 
         work_list = new_work_list;
