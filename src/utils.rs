@@ -10,8 +10,10 @@ pub fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Op
         let mut p = d.clone();
         p.push(file_path);
 
-        if let Ok(pb) = p.canonicalize() {
-            return Some(pb)
+        if p.exists() {
+            if let Ok(pb) = p.canonicalize() {
+                return Some(pb)
+            }
         }
     }
 
