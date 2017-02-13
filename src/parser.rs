@@ -20,11 +20,11 @@ use uncommenter::uncomment;
 
 
 pub struct ParserState {
-    pub include_dirs: Vec<PathBuf>,
+    include_dirs: Vec<PathBuf>,
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
-    pub errors: RefCell<Errors>,
+    errors: RefCell<Errors>,
     newline_offsets: Vec<usize>,
 }
 
