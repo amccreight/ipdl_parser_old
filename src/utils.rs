@@ -4,28 +4,18 @@
 
 use std::path::{Path, PathBuf};
 
-pub struct IncludeResolver {
-    include_dirs: Vec<PathBuf>,
-}
+pub fn resolve_include_path(include_dirs: &Vec<PathBuf>, file_path: &Path) -> Option<PathBuf> {
+    // XXX The Python parser also checks '' for some reason.
+    for d in include_dirs {
+        let mut p = d.clone();
+        p.push(file_path);
 
-impl IncludeResolver {
-    pub fn new(include_dirs: &Vec<PathBuf>) -> IncludeResolver {
-        IncludeResolver { include_dirs: include_dirs }
-    }
-
-    pub fn resolve(&self, file_path: &Path) -> Option<PathBuf> {
-        // XXX The Python parser also checks '' for some reason.
-        for d in &self.include_dirs {
-            let mut p = d.clone();
-            p.push(file_path);
-
-            if p.exists() {
-                if let Ok(pb) = p.canonicalize() {
-                    return Some(pb)
-                }
+        if p.exists() {
+            if let Ok(pb) = p.canonicalize() {
+                return Some(pb)
             }
         }
-
-        return None
     }
+
+    return None
 }
