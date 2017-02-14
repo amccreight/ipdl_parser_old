@@ -444,11 +444,11 @@ impl TranslationUnitType {
 
 
 fn declare_protocol(sym_tab: &mut SymbolTable,
-                    pb: &TUId,
+                    tuid: &TUId,
                     ns: &Namespace) -> Errors {
     let mut errors = Errors::none();
 
-    let p_type = IPDLType::ProtocolType(pb.clone());
+    let p_type = IPDLType::ProtocolType(tuid.clone());
     errors.append(sym_tab.declare(Decl::new_from_qid(&ns.qname(), p_type)));
 
     let ref loc = ns.name.loc;
@@ -477,20 +477,20 @@ fn declare_usings(mut sym_tab: &mut SymbolTable,
 
 
 fn declare_structs_and_unions(sym_tab: &mut SymbolTable,
-                              pb: &TUId,
+                              tuid: &TUId,
                               tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
     let mut index = 0;
 
     for s in &tu.structs {
-        let s_type = IPDLType::StructType(TypeRef::new(&pb, index));
+        let s_type = IPDLType::StructType(TypeRef::new(&tuid, index));
         errors.append(sym_tab.declare(Decl::new_from_qid(&s.0.qname(), s_type)));
         index += 1;
     }
 
     index = 0;
     for u in &tu.unions {
-        let u_type = IPDLType::UnionType(TypeRef::new(&pb, index));
+        let u_type = IPDLType::UnionType(TypeRef::new(&tuid, index));
         errors.append(sym_tab.declare(Decl::new_from_qid(&u.0.qname(), u_type)));
         index += 1;
     }
@@ -598,7 +598,7 @@ fn gather_decls_manages(sym_tab: &mut SymbolTable,
 
 
 fn gather_decls_message(mut sym_tab: &mut SymbolTable,
-                        pb: &TUId,
+                        tuid: &TUId,
                         protocol_type: &mut ProtocolTypeDef,
                         md: &MessageDecl) -> Errors {
     let mut errors = Errors::none();
@@ -619,7 +619,7 @@ fn gather_decls_message(mut sym_tab: &mut SymbolTable,
     }
 
     if DELETE_MESSAGE_NAME == message_name {
-        mtype = MessageType::Dtor(pb.clone());
+        mtype = MessageType::Dtor(tuid.clone());
     }
 
     sym_tab.enter_scope();
@@ -667,14 +667,14 @@ fn gather_decls_message(mut sym_tab: &mut SymbolTable,
     let index = protocol_type.messages.len();
     protocol_type.messages.push(msg_type);
 
-    let mt = IPDLType::MessageType(TypeRef::new(&pb, index));
+    let mt = IPDLType::MessageType(TypeRef::new(&tuid, index));
     errors.append(sym_tab.declare(Decl::new(&md.name.loc, mt, message_name)));
 
     errors
 }
 
 fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
-                         pb: &TUId,
+                         tuid: &TUId,
                          p: &(Namespace, Protocol),
                          mut p_type: &mut ProtocolTypeDef) -> Errors {
     let mut errors = Errors::none();
@@ -708,7 +708,7 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
     }
 
     for md in &p.1.messages {
-        errors.append(gather_decls_message(&mut sym_tab, &pb, &mut p_type, &md));
+        errors.append(gather_decls_message(&mut sym_tab, &tuid, &mut p_type, &md));
     }
 
     let delete_type = sym_tab.lookup(DELETE_MESSAGE_NAME);
@@ -904,22 +904,22 @@ enum ManagerCycleState {
 
 
 fn get_protocol_type<'a>(tuts: &'a HashMap<TUId, TranslationUnitType>,
-                         pb: &TUId) -> &'a ProtocolTypeDef
+                         tuid: &TUId) -> &'a ProtocolTypeDef
 {
-    tuts.get(pb).unwrap().protocol.as_ref().unwrap()
+    tuts.get(tuid).unwrap().protocol.as_ref().unwrap()
 }
 
 fn manager_cycle_error(tuts: &HashMap<TUId, TranslationUnitType>,
                        v: &Vec<TUId>,
-                       pb: &TUId) -> Errors {
+                       tuid: &TUId) -> Errors {
     let mut errors = Errors::none();
     let mut found = false;
     for p in v {
         if !found {
-            if p != pb {
+            if p != tuid {
                 continue;
             }
-            errors.append_one(get_protocol_type(&tuts, &pb).qname.loc(),
+            errors.append_one(get_protocol_type(&tuts, &tuid).qname.loc(),
                               "cycle detected in manager/manages hierarchy:");
             found = true;
         }
@@ -934,24 +934,24 @@ fn manager_cycle_error(tuts: &HashMap<TUId, TranslationUnitType>,
 fn protocol_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>,
                              mut visited: &mut HashMap<TUId, ManagerCycleState>,
                              mut stack: &mut Vec<TUId>,
-                             pb: &TUId) -> Errors {
-    if let Some(state) = visited.get(pb) {
+                             tuid: &TUId) -> Errors {
+    if let Some(state) = visited.get(tuid) {
         return match state {
-            &ManagerCycleState::Visiting => manager_cycle_error(&tuts, &stack, pb),
+            &ManagerCycleState::Visiting => manager_cycle_error(&tuts, &stack, tuid),
             &ManagerCycleState::Acyclic => Errors::none(),
         }
     }
 
     let mut errors = Errors::none();
-    visited.insert(pb.clone(), ManagerCycleState::Visiting);
+    visited.insert(tuid.clone(), ManagerCycleState::Visiting);
 
-    stack.push(pb.clone());
+    stack.push(tuid.clone());
 
-    let pt = get_protocol_type(&tuts, &pb);
+    let pt = get_protocol_type(&tuts, &tuid);
     for managee in &pt.manages {
         // Self-managed protocols are allowed, except at the top level.
         // The top level case is checked in protocol_managers_acyclic.
-        if managee == pb {
+        if managee == tuid {
             continue;
         }
 
@@ -960,7 +960,7 @@ fn protocol_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>,
 
     stack.pop();
 
-    *visited.get_mut(pb).unwrap() = ManagerCycleState::Acyclic;
+    *visited.get_mut(tuid).unwrap() = ManagerCycleState::Acyclic;
 
     errors
 }
@@ -970,15 +970,15 @@ fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Erro
     let mut visited = HashMap::new();
     let mut stack = Vec::new();
 
-    for (pb, tut) in tuts {
+    for (tuid, tut) in tuts {
         if tut.protocol.is_none() {
             continue;
         }
 
-        errors.append(protocol_managers_acyclic(&tuts, &mut visited, &mut stack, &pb));
+        errors.append(protocol_managers_acyclic(&tuts, &mut visited, &mut stack, &tuid));
 
-        let pt = get_protocol_type(&tuts, &pb);
-        if pt.managers.len() == 1 && &pt.managers[0] == pb {
+        let pt = get_protocol_type(&tuts, &tuid);
+        if pt.managers.len() == 1 && &pt.managers[0] == tuid {
             errors.append_one(pt.qname.loc(),
                               &format!("top-level protocol `{}' cannot manage itself",
                                       pt.qname.short_name()));
@@ -1097,15 +1097,15 @@ fn check_types_protocol(tuts: &HashMap<TUId, TranslationUnitType>,
 fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
                   tuts: &HashMap<TUId, TranslationUnitType>,
                   mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
-                  pb: &TUId,
+                  tuid: &TUId,
                   tut: &TranslationUnitType) -> Result<(), String> {
     let mut errors = Errors::none();
 
-    let tu = tus.get(pb).unwrap();
+    let tu = tus.get(tuid).unwrap();
 
     for i in 0..tut.structs.len() {
         if !fully_defined(&tuts, &mut defined,
-                          &IPDLType::StructType(TypeRef::new(&pb, i))) {
+                          &IPDLType::StructType(TypeRef::new(&tuid, i))) {
             errors.append_one(&tu.structs[i].0.name.loc,
                               &format!("struct `{}' is only partially defined",
                                        &tu.structs[i].0.name.id));
@@ -1114,7 +1114,7 @@ fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
 
     for i in 0..tut.unions.len() {
         if !fully_defined(&tuts, &mut defined,
-                          &IPDLType::UnionType(TypeRef::new(&pb, i))) {
+                          &IPDLType::UnionType(TypeRef::new(&tuid, i))) {
             errors.append_one(&tu.unions[i].0.name.loc,
                               &format!("union `{}' is only partially defined",
                                        &tu.unions[i].0.name.id));
@@ -1122,7 +1122,7 @@ fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
     }
 
     if let &Some(ref pt) = &tut.protocol {
-        errors.append(check_types_protocol(&tuts, &pb, &pt));
+        errors.append(check_types_protocol(&tuts, &tuid, &pt));
     }
 
     // XXX We don't need to track visited because we will visited all
@@ -1173,22 +1173,22 @@ pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
 
     let tus_vec = tus.iter().collect::<Vec<_>>();
 
-    for &(pb, tu) in &tus_vec {
+    for &(tuid, tu) in &tus_vec {
         try!(check_translation_unit(&tu));
 
         // Create top-level type decl for all protocols.
-        let old_entry = tuts.insert(pb.clone(), TranslationUnitType::new(&tu.protocol));
+        let old_entry = tuts.insert(tuid.clone(), TranslationUnitType::new(&tu.protocol));
         assert!(old_entry.is_none());
     }
 
-    for &(pb, tu) in &tus_vec {
-        try!(gather_decls_tu(&tus, &mut tuts, &pb, &tu));
+    for &(tuid, tu) in &tus_vec {
+        try!(gather_decls_tu(&tus, &mut tuts, &tuid, &tu));
     }
 
     let tuts_vec = tuts.iter().collect::<Vec<_>>();
     let mut defined = HashMap::new();
-    for &(pb, tut) in &tuts_vec {
-        try!(check_types_tu(&tus, &tuts, &mut defined, &pb, &tut));
+    for &(tuid, tut) in &tuts_vec {
+        try!(check_types_tu(&tus, &tuts, &mut defined, &tuid, &tut));
     }
 
     Ok(())
