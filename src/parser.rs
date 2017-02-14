@@ -21,6 +21,7 @@ use uncommenter::uncomment;
 
 
 pub struct ParserState {
+    pub include_dirs: Vec<PathBuf>,
     pub file_type: FileType,
     pub file_name: PathBuf,
     pub direction: Cell<Option<Direction>>,
@@ -29,8 +30,9 @@ pub struct ParserState {
 }
 
 impl ParserState {
-    pub fn new(file_type: FileType, file_name: &Path, newline_offsets: Vec<usize>) -> ParserState {
+    pub fn new(include_dirs: Vec<PathBuf>, file_type: FileType, file_name: &Path, newline_offsets: Vec<usize>) -> ParserState {
         ParserState {
+            include_dirs: include_dirs,
             file_type: file_type,
             file_name: PathBuf::from(file_name),
             direction: Cell::new(None),
@@ -71,7 +73,7 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
-pub fn parse_file(file_name: &Path) -> Result<TranslationUnit, String> {
+pub fn parse_file(include_dirs: &Vec<PathBuf>, file_name: &Path) -> Result<TranslationUnit, String> {
 
     // The file type and name are later enforced by the type checker.
     // This is just a hint to the parser.
@@ -92,7 +94,7 @@ pub fn parse_file(file_name: &Path) -> Result<TranslationUnit, String> {
         offset += 1;
     }
 
-    let parser_state = ParserState::new(file_type, file_name, newline_offsets);
+    let parser_state = ParserState::new(include_dirs.clone(), file_type, file_name, newline_offsets);
     parse_TranslationUnit(&parser_state, &text)
         .map_err(|e| {
             match e {
@@ -159,7 +161,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
         for (curr_file, include_context) in work_list {
             // XXX In the long run, we probably don't want to output this.
             println!("Parsing file {}", curr_file.display());
-            let tu = match parse_file(&curr_file) {
+            let tu = match parse_file(&include_dirs, &curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
                     print_include_context(&include_context);
