@@ -9,4 +9,6 @@ lalrpop = "0.12.1"
 
 [dependencies]
 lalrpop-util = "0.12.1"
+lazy_static = "0.2.2"
 getopts = "0.2.14"
+regex = "0.1.80"

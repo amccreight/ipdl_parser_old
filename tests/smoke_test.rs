@@ -42,8 +42,8 @@ fn test_files(test_file_path: &str, should_pass: bool) {
             }
 
             let file_names = vec![entry.path()];
-            let ok = ipdl_parser::compiler::compile(&include_dirs, file_names);
-            assert!(expected_result == ok);
+            let result = ipdl_parser::compiler::compile(&include_dirs, file_names);
+            assert_eq!(expected_result, result.is_some());
         }
     }
 }
