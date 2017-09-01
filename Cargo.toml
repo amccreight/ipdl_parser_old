@@ -5,8 +5,8 @@ authors = ["Andrew McCreight <continuation@gmail.com>"]
 build = "build.rs"
 
 [build-dependencies]
-lalrpop = "0.12.1"
+lalrpop = "0.13.1"
 
 [dependencies]
-lalrpop-util = "0.12.1"
+lalrpop-util = "0.13.1"
 getopts = "0.2.14"
