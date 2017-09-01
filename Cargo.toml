@@ -4,9 +4,18 @@ version = "0.1.0"
 authors = ["Andrew McCreight <continuation@gmail.com>"]
 build = "build.rs"
 
-[build-dependencies]
-lalrpop = "0.13.1"
+# Add a dependency on the regex crate; this is not
+# needed if you are writing your own tokenizer by
+# hand (or if you are already using the regex crate)
+[dependencies.regex]
+version = "0.2.0"
+
+# Add a dependency on the LALRPOP runtime library:
+[dependencies.lalrpop-util]
+version = "0.13.1"
+
+[build-dependencies.lalrpop]
+version = "0.13.1"
 
 [dependencies]
-lalrpop-util = "0.13.1"
 getopts = "0.2.14"
