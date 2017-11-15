@@ -1,0 +1,6 @@
+async protocol Prio
+{
+child:
+  prio(normal) async NormalPrio();
+  prio(high) async HighPrio();
+};
