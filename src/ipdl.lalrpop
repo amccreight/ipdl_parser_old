@@ -295,6 +295,7 @@ Nesting: Nesting = {
 Priority: Priority = {
     "normal" => Priority::Normal,
     "high" => Priority::High,
+    "input" => Priority::Input,
 };
 
 SendQualifier: (Option<Nesting>, Option<Priority>) = {

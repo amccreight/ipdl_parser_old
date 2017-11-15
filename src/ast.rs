@@ -191,6 +191,7 @@ impl Nesting {
 pub enum Priority {
     Normal,
     High,
+    Input,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
