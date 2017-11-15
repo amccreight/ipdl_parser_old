@@ -597,7 +597,7 @@ fn gather_decls_manages(sym_tab: &mut SymbolTable,
 }
 
 
-fn gather_decls_message(mut sym_tab: &mut SymbolTable,
+fn gather_decls_message(sym_tab: &mut SymbolTable,
                         tuid: &TUId,
                         protocol_type: &mut ProtocolTypeDef,
                         md: &MessageDecl) -> Errors {
@@ -760,7 +760,7 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
                    tu: &TranslationUnit) -> Result<(), String> {
     let mut errors = Errors::none();
     let mut sym_tab = SymbolTable::new();
-    let mut tut = &mut tuts.get_mut(tuid).unwrap();
+    let tut = &mut tuts.get_mut(tuid).unwrap();
 
     if let &Some(ref p) = &tu.protocol {
         errors.append(declare_protocol(&mut sym_tab, &tuid, &p.0));
