@@ -1023,11 +1023,9 @@ fn check_types_message(ptype: &ProtocolTypeDef,
                                    mname, ptype.qname.short_name()));
     }
 
-    if mtype.is_async() && mtype.returns.len() > 0 {
-        // XXX/cjones could modify grammar to disallow this ...
-        // However, see bug 1313200 for a proposal to support async return values.
+    if (mtype.is_ctor() || mtype.is_dtor()) && mtype.is_async() && mtype.returns.len() > 0 {
         errors.append_one(&mtype.name.loc,
-                          &format!("asynchronous message `{}' in protocol `{}' declares return values",
+                          &format!("asynchronous ctor/dtor message `{}' in protocol `{}' declares return values",
                                    mname, ptype.qname.short_name()));
     }
 
