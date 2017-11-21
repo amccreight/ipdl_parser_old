@@ -37,6 +37,8 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "nsresult",
     "nsString",
     "nsCString",
+    "nsDependentSubstring",
+    "nsDependentCSubstring",
     "mozilla::ipc::Shmem",
     "mozilla::ipc::FileDescriptor"
 ];
