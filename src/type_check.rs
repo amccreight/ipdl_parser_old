@@ -40,7 +40,8 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "nsDependentSubstring",
     "nsDependentCSubstring",
     "mozilla::ipc::Shmem",
-    "mozilla::ipc::FileDescriptor"
+    "mozilla::ipc::ByteBuf",
+    "mozilla::ipc::FileDescriptor",
 ];
 
 fn builtin_from_string(tname: &str) -> TypeSpec {
@@ -86,6 +87,7 @@ enum IPDLType {
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
     ShmemType(QualifiedId),
+    ByteBufType(QualifiedId),
     FDType(QualifiedId),
     EndpointType(QualifiedId),
 }
@@ -102,6 +104,7 @@ impl IPDLType {
             &IPDLType::UnionType(_) => "union type",
             &IPDLType::ArrayType(_) => "array type",
             &IPDLType::ShmemType(_) => "shmem type",
+            &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
             &IPDLType::EndpointType(_) => "endpoint type",
         }
@@ -419,6 +422,8 @@ fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: 
     let ipdl_type = match cxx_type.spec.full_name() {
         Some(ref n) if n == "mozilla::ipc::Shmem" =>
             IPDLType::ShmemType(cxx_type.spec.clone()),
+        Some(ref n) if n == "mozilla::ipc::ByteBuf" =>
+            IPDLType::ByteBufType(cxx_type.spec.clone()),
         Some(ref n) if n == "mozilla::ipc::FileDescriptor" =>
             IPDLType::FDType(cxx_type.spec.clone()),
         _ => {
