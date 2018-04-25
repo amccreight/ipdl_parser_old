@@ -1,13 +1,3 @@
-[root]
-name = "ipdl_parser"
-version = "0.1.0"
-dependencies = [
- "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "lalrpop 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "lalrpop-util 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
 [[package]]
 name = "aho-corasick"
 version = "0.6.3"
@@ -82,6 +72,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "getopts"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "ipdl_parser"
+version = "0.1.0"
+dependencies = [
+ "getopts 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lalrpop 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lalrpop-util 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "itertools"
