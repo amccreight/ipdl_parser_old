@@ -323,6 +323,7 @@ pub struct UsingStmt {
     pub cxx_type: TypeSpec,
     pub header: String,
     pub kind: Option<CxxTypeKind>,
+    pub refcounted: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -37,8 +37,11 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "nsresult",
     "nsString",
     "nsCString",
+    "nsDependentSubstring",
+    "nsDependentCSubstring",
     "mozilla::ipc::Shmem",
-    "mozilla::ipc::FileDescriptor"
+    "mozilla::ipc::ByteBuf",
+    "mozilla::ipc::FileDescriptor",
 ];
 
 fn builtin_from_string(tname: &str) -> TypeSpec {
@@ -76,7 +79,7 @@ impl TypeRef {
 // may be different.
 #[derive(Debug, Clone)]
 enum IPDLType {
-    ImportedCxxType(QualifiedId),
+    ImportedCxxType(QualifiedId, bool /* refcounted */),
     MessageType(TypeRef),
     ProtocolType(TUId),
     ActorType(TUId, bool /* nullable */),
@@ -84,6 +87,7 @@ enum IPDLType {
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
     ShmemType(QualifiedId),
+    ByteBufType(QualifiedId),
     FDType(QualifiedId),
     EndpointType(QualifiedId),
 }
@@ -92,7 +96,7 @@ enum IPDLType {
 impl IPDLType {
     fn type_name(&self) -> &'static str {
         match self {
-            &IPDLType::ImportedCxxType(_) => "imported C++ type",
+            &IPDLType::ImportedCxxType(_, _) => "imported C++ type",
             &IPDLType::MessageType(_) => "message type",
             &IPDLType::ProtocolType(_) => "protocol type",
             &IPDLType::ActorType(_, _) => "actor type",
@@ -100,6 +104,7 @@ impl IPDLType {
             &IPDLType::UnionType(_) => "union type",
             &IPDLType::ArrayType(_) => "array type",
             &IPDLType::ShmemType(_) => "shmem type",
+            &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
             &IPDLType::EndpointType(_) => "endpoint type",
         }
@@ -128,6 +133,13 @@ impl IPDLType {
         }
 
         (errors, itype)
+    }
+
+    fn is_refcounted(&self) -> bool {
+        match self {
+            &IPDLType::ImportedCxxType(_, refcounted) => refcounted,
+            _ => false,
+        }
     }
 }
 
@@ -406,18 +418,25 @@ impl SymbolTable {
     }
 }
 
-fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec) -> Errors {
+fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: bool) -> Errors {
     let ipdl_type = match cxx_type.spec.full_name() {
         Some(ref n) if n == "mozilla::ipc::Shmem" =>
             IPDLType::ShmemType(cxx_type.spec.clone()),
+        Some(ref n) if n == "mozilla::ipc::ByteBuf" =>
+            IPDLType::ByteBufType(cxx_type.spec.clone()),
         Some(ref n) if n == "mozilla::ipc::FileDescriptor" =>
             IPDLType::FDType(cxx_type.spec.clone()),
         _ => {
-            let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone());
+            let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted);
             let full_name = format!("{}", cxx_type.spec);
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
+                        if refcounted != decl.decl_type.is_refcounted() {
+                            return Errors::one(&cxx_type.loc(),
+                                               &format!("inconsistent refcounted status of type `{}', first declared at {}",
+                                                        full_name, decl.loc))
+                        }
                         // This type has already been added, so don't do anything.
                         return Errors::none()
                     }
@@ -470,7 +489,7 @@ fn declare_usings(mut sym_tab: &mut SymbolTable,
                   tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
     for u in &tu.using {
-        errors.append(declare_cxx_type(&mut sym_tab, &u.cxx_type));
+        errors.append(declare_cxx_type(&mut sym_tab, &u.cxx_type, u.refcounted));
     }
     errors
 }
@@ -783,7 +802,7 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
     // Declare builtin C++ types.
     for t in BUILTIN_TYPES {
         let cxx_type = builtin_from_string(t);
-        errors.append(declare_cxx_type(&mut sym_tab, &cxx_type));
+        errors.append(declare_cxx_type(&mut sym_tab, &cxx_type, false /* refcounted */));
     }
 
     // Declare imported C++ types.
@@ -1021,11 +1040,9 @@ fn check_types_message(ptype: &ProtocolTypeDef,
                                    mname, ptype.qname.short_name()));
     }
 
-    if mtype.is_async() && mtype.returns.len() > 0 {
-        // XXX/cjones could modify grammar to disallow this ...
-        // However, see bug 1313200 for a proposal to support async return values.
+    if (mtype.is_ctor() || mtype.is_dtor()) && mtype.is_async() && mtype.returns.len() > 0 {
         errors.append_one(&mtype.name.loc,
-                          &format!("asynchronous message `{}' in protocol `{}' declares return values",
+                          &format!("asynchronous ctor/dtor message `{}' in protocol `{}' declares return values",
                                    mname, ptype.qname.short_name()));
     }
 
