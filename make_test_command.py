@@ -9,16 +9,24 @@
 # 1. Add the following code to ipc/ipdl/ipdl.py, do a build, and copy
 # the output from the build, from INCLUDES to DONE, somewhere:
 #
-# print "INCLUDES"
+# print("INCLUDES")
 # for i in includedirs:
-#     print i
-# print "FILES"
+#     print(i)
+# print("FILES")
 # for f in files:
-#     print f
-# print "DONE"
+#     print(f)
+# print("DONE")
 
 # 2. Adjust leading_text_example as necessary, if the log timestamp
 # stuff has changed.
+
+# 3. You'll need to manually adjust the script for any preprocessed
+# IPDL files. At the time of this writing, that is only
+# PMediaTransport.ipdl. Find that file in the script command and edit
+# the entry so that it is a reference to the full path in the objdir,
+# which will be something like:
+#
+# <obj-dir>/ipc/ipcl/PMediaTransport.ipdl
 
 # 3. Run this script on the output from step 1. This should produce a
 # command to run cargo with all of the files from step 1. You can run
