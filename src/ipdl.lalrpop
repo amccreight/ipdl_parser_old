@@ -132,11 +132,12 @@ IncludeStmt: PreambleStmt = {
 };
 
 UsingStmt: PreambleStmt = {
-    "using" <rc:"refcounted"?> <k:CxxTypeKind?> <t:CxxType> "from" <h:STRING> =>
+    "using" <rc:"refcounted"?> <mo:"moveonly"?> <k:CxxTypeKind?> <t:CxxType> "from" <h:STRING> =>
         PreambleStmt::Using(UsingStmt { cxx_type: t,
                                         header: h,
                                         kind: k,
-                                        refcounted: rc.is_some()}),
+                                        refcounted: rc.is_some(),
+                                        moveonly: mo.is_some()}),
 };
 
 CxxTypeKind: CxxTypeKind = {

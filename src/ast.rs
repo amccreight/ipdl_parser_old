@@ -324,6 +324,7 @@ pub struct UsingStmt {
     pub header: String,
     pub kind: Option<CxxTypeKind>,
     pub refcounted: bool,
+    pub moveonly: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
