@@ -92,6 +92,7 @@ enum IPDLType {
     ByteBufType(QualifiedId),
     FDType(QualifiedId),
     EndpointType(QualifiedId),
+    ManagedEndpointType(QualifiedId),
     UniquePtrType(Box<IPDLType>),
 }
 
@@ -111,6 +112,7 @@ impl IPDLType {
             &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
             &IPDLType::EndpointType(_) => "endpoint type",
+            &IPDLType::ManagedEndpointType(_) => "managed endpoint type",
             &IPDLType::UniquePtrType(_) => "uniqueptr type",
         }
     }
@@ -497,15 +499,24 @@ fn declare_protocol(sym_tab: &mut SymbolTable,
     errors.append(sym_tab.declare(Decl::new_from_qid(&ns.qname(), p_type)));
 
     let ref loc = ns.name.loc;
-    let mut declare_endpoint = |side: &str| {
-        let full_id = Identifier::new(format!("Endpoint<{}{}>", ns.qname(), side), loc.clone());
+    let mut declare_endpoint = |is_managed: bool, side: &str| {
+        let endpoint_str = if is_managed { "ManagedEndpoint" } else { "Endpoint" };
+        let full_id = Identifier::new(format!("{}<{}{}>", endpoint_str, ns.qname(), side),
+                                      loc.clone());
         let namespaces = vec!["mozilla".to_string(), "ipc".to_string()];
         let full_qid = QualifiedId { base_id: full_id, quals: namespaces };
-        let short_name = format!("Endpoint<{}{}>", ns.name.id, side);
-        sym_tab.declare(Decl::new(loc, IPDLType::EndpointType(full_qid), short_name))
+        let endpoint_type = if is_managed {
+            IPDLType::ManagedEndpointType(full_qid)
+        } else {
+            IPDLType::EndpointType(full_qid)
+        };
+        let short_name = format!("{}<{}{}>", endpoint_str, ns.name.id, side);
+        sym_tab.declare(Decl::new(loc, endpoint_type, short_name))
     };
-    errors.append(declare_endpoint("Parent"));
-    errors.append(declare_endpoint("Child"));
+    errors.append(declare_endpoint(true, "Parent"));
+    errors.append(declare_endpoint(true, "Child"));
+    errors.append(declare_endpoint(false, "Parent"));
+    errors.append(declare_endpoint(false, "Child"));
 
     errors
 }
@@ -773,20 +784,6 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
         None => false
     };
 
-    for managed in &p.1.manages {
-        let ctor_name = managed.id.clone() + CONSTRUCTOR_SUFFIX;
-        match sym_tab.lookup(&ctor_name) {
-            Some(Decl { decl_type: IPDLType::MessageType(tr), .. }) =>
-                if p_type.messages[tr.index].is_ctor() {
-                    continue;
-                },
-            _ => (),
-        }
-        errors.append_one(&managed.loc,
-                          &format!("constructor declaration required for managed protocol `{}' (managed by protocol `{}')",
-                                   managed.id, p.0.qname().short_name()));
-    }
-
     // FIXME/cjones Declare all the little C++ thingies that will
     // be generated. They're not relevant to IPDL itself, but
     // those ("invisible") symbols can clash with others in the
@@ -908,6 +905,7 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
         &IPDLType::ByteBufType(_) => return true,
         &IPDLType::FDType(_) => return true,
         &IPDLType::EndpointType(_) => return true,
+        &IPDLType::ManagedEndpointType(_) => return true,
     };
 
     // The Python version would repeatedly visit a type that was found
