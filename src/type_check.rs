@@ -87,6 +87,7 @@ enum IPDLType {
     StructType(TypeRef),
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
+    MaybeType(Box<IPDLType>),
     ShmemType(QualifiedId),
     ByteBufType(QualifiedId),
     FDType(QualifiedId),
@@ -105,6 +106,7 @@ impl IPDLType {
             &IPDLType::StructType(_) => "struct type",
             &IPDLType::UnionType(_) => "union type",
             &IPDLType::ArrayType(_) => "array type",
+            &IPDLType::MaybeType(_) => "maybe type",
             &IPDLType::ShmemType(_) => "shmem type",
             &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
@@ -133,6 +135,10 @@ impl IPDLType {
 
         if type_spec.array {
             itype = IPDLType::ArrayType(Box::new(itype))
+        }
+
+        if type_spec.maybe {
+            itype = IPDLType::MaybeType(Box::new(itype))
         }
 
         if type_spec.uniqueptr {
@@ -891,6 +897,7 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
         &IPDLType::StructType(ref tr) => (CompoundType::Struct, tr.clone()),
         &IPDLType::UnionType(ref tr) => (CompoundType::Union, tr.clone()),
         &IPDLType::ArrayType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
+        &IPDLType::MaybeType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
         &IPDLType::UniquePtrType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
 
         &IPDLType::ImportedCxxType(_, _, _) => return true,

@@ -63,19 +63,25 @@ impl fmt::Display for QualifiedId {
 pub struct TypeSpec {
     pub spec: QualifiedId,
     pub array: bool,
+    pub maybe: bool,
     pub nullable: bool,
     pub uniqueptr: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, array: false, nullable: false, uniqueptr: false }
+        TypeSpec { spec: spec, array: false, maybe: false, nullable: false, uniqueptr: false }
     }
 
     // XXX Get rid of these setters if the fields are just public anyways?
 
     pub fn set_array(mut self, is_array: bool) -> TypeSpec {
         self.array = is_array;
+        self
+    }
+
+    pub fn set_maybe(mut self, is_maybe: bool) -> TypeSpec {
+        self.maybe = is_maybe;
         self
     }
 
