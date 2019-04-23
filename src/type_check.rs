@@ -497,15 +497,15 @@ fn declare_protocol(sym_tab: &mut SymbolTable,
     errors.append(sym_tab.declare(Decl::new_from_qid(&ns.qname(), p_type)));
 
     let ref loc = ns.name.loc;
-    let mut declare_endpoint = |side: String| {
+    let mut declare_endpoint = |side: &str| {
         let full_id = Identifier::new(format!("Endpoint<{}{}>", ns.qname(), side), loc.clone());
         let namespaces = vec!["mozilla".to_string(), "ipc".to_string()];
         let full_qid = QualifiedId { base_id: full_id, quals: namespaces };
         let short_name = format!("Endpoint<{}{}>", ns.name.id, side);
         sym_tab.declare(Decl::new(loc, IPDLType::EndpointType(full_qid), short_name))
     };
-    errors.append(declare_endpoint("Parent".to_string()));
-    errors.append(declare_endpoint("Child".to_string()));
+    errors.append(declare_endpoint("Parent"));
+    errors.append(declare_endpoint("Child"));
 
     errors
 }
