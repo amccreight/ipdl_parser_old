@@ -64,11 +64,12 @@ pub struct TypeSpec {
     pub spec: QualifiedId,
     pub array: bool,
     pub nullable: bool,
+    pub uniqueptr: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, array: false, nullable: false }
+        TypeSpec { spec: spec, array: false, nullable: false, uniqueptr: false }
     }
 
     // XXX Get rid of these setters if the fields are just public anyways?
@@ -80,6 +81,11 @@ impl TypeSpec {
 
     pub fn set_nullable(mut self, is_nullable: bool) -> TypeSpec {
         self.nullable = is_nullable;
+        self
+    }
+
+    pub fn set_uniqueptr(mut self, is_uniqueptr: bool) -> TypeSpec {
+        self.uniqueptr = is_uniqueptr;
         self
     }
 

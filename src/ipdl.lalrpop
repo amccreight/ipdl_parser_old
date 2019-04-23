@@ -355,6 +355,9 @@ BasicType: TypeSpec = {
     <id:CxxID> <is_array: ("[" "]")?> => {
         TypeSpec::new(QualifiedId::new(id)).set_array(is_array.is_some())
     },
+    <uniqueptr: CxxUniquePtrInst> => {
+        TypeSpec::new(QualifiedId::new(uniqueptr)).set_uniqueptr(true)
+    },
 };
 
 
@@ -379,5 +382,12 @@ CxxID: Identifier = {
 CxxTemplateInst: Identifier = {
     <t_name:Identifier> "<" <arg:Identifier> ">" => {
         Identifier::new(t_name.id + "<" + &arg.id + ">", t_name.loc)
+    }
+};
+
+CxxUniquePtrInst: Identifier = {
+    <start:@L> "UniquePtr" "<" <arg:Identifier> ">" => {
+        let start_loc = parser_state.resolve_location(start);
+        Identifier::new(arg.id, start_loc)
     }
 };

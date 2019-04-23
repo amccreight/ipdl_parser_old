@@ -41,6 +41,7 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "nsDependentCSubstring",
     "mozilla::ipc::Shmem",
     "mozilla::ipc::ByteBuf",
+    "mozilla::UniquePtr",
     "mozilla::ipc::FileDescriptor",
 ];
 
@@ -90,6 +91,7 @@ enum IPDLType {
     ByteBufType(QualifiedId),
     FDType(QualifiedId),
     EndpointType(QualifiedId),
+    UniquePtrType(Box<IPDLType>),
 }
 
 
@@ -107,6 +109,7 @@ impl IPDLType {
             &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
             &IPDLType::EndpointType(_) => "endpoint type",
+            &IPDLType::UniquePtrType(_) => "uniqueptr type",
         }
     }
 
@@ -130,6 +133,10 @@ impl IPDLType {
 
         if type_spec.array {
             itype = IPDLType::ArrayType(Box::new(itype))
+        }
+
+        if type_spec.uniqueptr {
+            itype = IPDLType::UniquePtrType(Box::new(itype))
         }
 
         (errors, itype)
@@ -436,6 +443,7 @@ fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: 
         _ => {
             let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted, moveonly);
             let full_name = format!("{}", cxx_type.spec);
+            // ??? What to do here for UniquePtr?
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
@@ -883,7 +891,16 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
         &IPDLType::StructType(ref tr) => (CompoundType::Struct, tr.clone()),
         &IPDLType::UnionType(ref tr) => (CompoundType::Union, tr.clone()),
         &IPDLType::ArrayType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
-        _ => return true,
+        &IPDLType::UniquePtrType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
+
+        &IPDLType::ImportedCxxType(_, _, _) => return true,
+        &IPDLType::MessageType(_) => return true,
+        &IPDLType::ProtocolType(_) => return true,
+        &IPDLType::ActorType(_, _) => return true,
+        &IPDLType::ShmemType(_) => return true,
+        &IPDLType::ByteBufType(_) => return true,
+        &IPDLType::FDType(_) => return true,
+        &IPDLType::EndpointType(_) => return true,
     };
 
     // The Python version would repeatedly visit a type that was found
