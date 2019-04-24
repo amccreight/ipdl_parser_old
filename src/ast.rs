@@ -63,12 +63,14 @@ impl fmt::Display for QualifiedId {
 pub struct TypeSpec {
     pub spec: QualifiedId,
     pub array: bool,
+    pub maybe: bool,
     pub nullable: bool,
+    pub uniqueptr: bool,
 }
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, array: false, nullable: false }
+        TypeSpec { spec: spec, array: false, maybe: false, nullable: false, uniqueptr: false }
     }
 
     // XXX Get rid of these setters if the fields are just public anyways?
@@ -78,8 +80,18 @@ impl TypeSpec {
         self
     }
 
+    pub fn set_maybe(mut self, is_maybe: bool) -> TypeSpec {
+        self.maybe = is_maybe;
+        self
+    }
+
     pub fn set_nullable(mut self, is_nullable: bool) -> TypeSpec {
         self.nullable = is_nullable;
+        self
+    }
+
+    pub fn set_uniqueptr(mut self, is_uniqueptr: bool) -> TypeSpec {
+        self.uniqueptr = is_uniqueptr;
         self
     }
 
@@ -324,6 +336,7 @@ pub struct UsingStmt {
     pub header: String,
     pub kind: Option<CxxTypeKind>,
     pub refcounted: bool,
+    pub moveonly: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

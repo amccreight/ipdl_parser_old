@@ -41,6 +41,7 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "nsDependentCSubstring",
     "mozilla::ipc::Shmem",
     "mozilla::ipc::ByteBuf",
+    "mozilla::UniquePtr",
     "mozilla::ipc::FileDescriptor",
 ];
 
@@ -79,34 +80,40 @@ impl TypeRef {
 // may be different.
 #[derive(Debug, Clone)]
 enum IPDLType {
-    ImportedCxxType(QualifiedId, bool /* refcounted */),
+    ImportedCxxType(QualifiedId, bool /* refcounted */, bool /* moveonly */),
     MessageType(TypeRef),
     ProtocolType(TUId),
     ActorType(TUId, bool /* nullable */),
     StructType(TypeRef),
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
+    MaybeType(Box<IPDLType>),
     ShmemType(QualifiedId),
     ByteBufType(QualifiedId),
     FDType(QualifiedId),
     EndpointType(QualifiedId),
+    ManagedEndpointType(QualifiedId),
+    UniquePtrType(Box<IPDLType>),
 }
 
 
 impl IPDLType {
     fn type_name(&self) -> &'static str {
         match self {
-            &IPDLType::ImportedCxxType(_, _) => "imported C++ type",
+            &IPDLType::ImportedCxxType(_, _, _) => "imported C++ type",
             &IPDLType::MessageType(_) => "message type",
             &IPDLType::ProtocolType(_) => "protocol type",
             &IPDLType::ActorType(_, _) => "actor type",
             &IPDLType::StructType(_) => "struct type",
             &IPDLType::UnionType(_) => "union type",
             &IPDLType::ArrayType(_) => "array type",
+            &IPDLType::MaybeType(_) => "maybe type",
             &IPDLType::ShmemType(_) => "shmem type",
             &IPDLType::ByteBufType(_) => "bytebuf type",
             &IPDLType::FDType(_) => "fd type",
             &IPDLType::EndpointType(_) => "endpoint type",
+            &IPDLType::ManagedEndpointType(_) => "managed endpoint type",
+            &IPDLType::UniquePtrType(_) => "uniqueptr type",
         }
     }
 
@@ -132,12 +139,27 @@ impl IPDLType {
             itype = IPDLType::ArrayType(Box::new(itype))
         }
 
+        if type_spec.maybe {
+            itype = IPDLType::MaybeType(Box::new(itype))
+        }
+
+        if type_spec.uniqueptr {
+            itype = IPDLType::UniquePtrType(Box::new(itype))
+        }
+
         (errors, itype)
     }
 
     fn is_refcounted(&self) -> bool {
         match self {
-            &IPDLType::ImportedCxxType(_, refcounted) => refcounted,
+            &IPDLType::ImportedCxxType(_, refcounted, _) => refcounted,
+            _ => false,
+        }
+    }
+
+    fn is_moveonly(&self) -> bool {
+        match self {
+            &IPDLType::ImportedCxxType(_, _, moveonly) => moveonly,
             _ => false,
         }
     }
@@ -418,7 +440,7 @@ impl SymbolTable {
     }
 }
 
-fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: bool) -> Errors {
+fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: bool, moveonly: bool) -> Errors {
     let ipdl_type = match cxx_type.spec.full_name() {
         Some(ref n) if n == "mozilla::ipc::Shmem" =>
             IPDLType::ShmemType(cxx_type.spec.clone()),
@@ -427,14 +449,20 @@ fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: 
         Some(ref n) if n == "mozilla::ipc::FileDescriptor" =>
             IPDLType::FDType(cxx_type.spec.clone()),
         _ => {
-            let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted);
+            let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted, moveonly);
             let full_name = format!("{}", cxx_type.spec);
+            // ??? What to do here for UniquePtr?
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
                         if refcounted != decl.decl_type.is_refcounted() {
                             return Errors::one(&cxx_type.loc(),
                                                &format!("inconsistent refcounted status of type `{}', first declared at {}",
+                                                        full_name, decl.loc))
+                        }
+                        if moveonly != decl.decl_type.is_moveonly() {
+                            return Errors::one(&cxx_type.loc(),
+                                               &format!("inconsistent moveonly status of type `{}', first declared at {}",
                                                         full_name, decl.loc))
                         }
                         // This type has already been added, so don't do anything.
@@ -471,15 +499,24 @@ fn declare_protocol(sym_tab: &mut SymbolTable,
     errors.append(sym_tab.declare(Decl::new_from_qid(&ns.qname(), p_type)));
 
     let ref loc = ns.name.loc;
-    let mut declare_endpoint = |side: String| {
-        let full_id = Identifier::new(format!("Endpoint<{}{}>", ns.qname(), side), loc.clone());
+    let mut declare_endpoint = |is_managed: bool, side: &str| {
+        let endpoint_str = if is_managed { "ManagedEndpoint" } else { "Endpoint" };
+        let full_id = Identifier::new(format!("{}<{}{}>", endpoint_str, ns.qname(), side),
+                                      loc.clone());
         let namespaces = vec!["mozilla".to_string(), "ipc".to_string()];
         let full_qid = QualifiedId { base_id: full_id, quals: namespaces };
-        let short_name = format!("Endpoint<{}{}>", ns.name.id, side);
-        sym_tab.declare(Decl::new(loc, IPDLType::EndpointType(full_qid), short_name))
+        let endpoint_type = if is_managed {
+            IPDLType::ManagedEndpointType(full_qid)
+        } else {
+            IPDLType::EndpointType(full_qid)
+        };
+        let short_name = format!("{}<{}{}>", endpoint_str, ns.name.id, side);
+        sym_tab.declare(Decl::new(loc, endpoint_type, short_name))
     };
-    errors.append(declare_endpoint("Parent".to_string()));
-    errors.append(declare_endpoint("Child".to_string()));
+    errors.append(declare_endpoint(true, "Parent"));
+    errors.append(declare_endpoint(true, "Child"));
+    errors.append(declare_endpoint(false, "Parent"));
+    errors.append(declare_endpoint(false, "Child"));
 
     errors
 }
@@ -489,7 +526,7 @@ fn declare_usings(mut sym_tab: &mut SymbolTable,
                   tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
     for u in &tu.using {
-        errors.append(declare_cxx_type(&mut sym_tab, &u.cxx_type, u.refcounted));
+        errors.append(declare_cxx_type(&mut sym_tab, &u.cxx_type, u.refcounted, u.moveonly));
     }
     errors
 }
@@ -747,20 +784,6 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
         None => false
     };
 
-    for managed in &p.1.manages {
-        let ctor_name = managed.id.clone() + CONSTRUCTOR_SUFFIX;
-        match sym_tab.lookup(&ctor_name) {
-            Some(Decl { decl_type: IPDLType::MessageType(tr), .. }) =>
-                if p_type.messages[tr.index].is_ctor() {
-                    continue;
-                },
-            _ => (),
-        }
-        errors.append_one(&managed.loc,
-                          &format!("constructor declaration required for managed protocol `{}' (managed by protocol `{}')",
-                                   managed.id, p.0.qname().short_name()));
-    }
-
     // FIXME/cjones Declare all the little C++ thingies that will
     // be generated. They're not relevant to IPDL itself, but
     // those ("invisible") symbols can clash with others in the
@@ -802,7 +825,7 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
     // Declare builtin C++ types.
     for t in BUILTIN_TYPES {
         let cxx_type = builtin_from_string(t);
-        errors.append(declare_cxx_type(&mut sym_tab, &cxx_type, false /* refcounted */));
+        errors.append(declare_cxx_type(&mut sym_tab, &cxx_type, false /* refcounted */, false /* moveonly */));
     }
 
     // Declare imported C++ types.
@@ -871,7 +894,18 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
         &IPDLType::StructType(ref tr) => (CompoundType::Struct, tr.clone()),
         &IPDLType::UnionType(ref tr) => (CompoundType::Union, tr.clone()),
         &IPDLType::ArrayType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
-        _ => return true,
+        &IPDLType::MaybeType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
+        &IPDLType::UniquePtrType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
+
+        &IPDLType::ImportedCxxType(_, _, _) => return true,
+        &IPDLType::MessageType(_) => return true,
+        &IPDLType::ProtocolType(_) => return true,
+        &IPDLType::ActorType(_, _) => return true,
+        &IPDLType::ShmemType(_) => return true,
+        &IPDLType::ByteBufType(_) => return true,
+        &IPDLType::FDType(_) => return true,
+        &IPDLType::EndpointType(_) => return true,
+        &IPDLType::ManagedEndpointType(_) => return true,
     };
 
     // The Python version would repeatedly visit a type that was found
