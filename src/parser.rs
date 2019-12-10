@@ -249,7 +249,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 Err(message) => {
                     print_include_context(&include_context);
                     println!("{} {}", curr_file.display(), message);
-                    return None
+                    continue
                 }
             };
 
