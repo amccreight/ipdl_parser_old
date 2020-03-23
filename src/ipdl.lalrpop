@@ -9,7 +9,7 @@ use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier,
 
 use parser::{TopLevelDecl, ParserState, PreambleStmt};
 
-grammar(parser_state: &ParserState);
+grammar<'a>(parser_state: &ParserState<'a>);
 
 //-----------------------------------------------------------------------------
 
