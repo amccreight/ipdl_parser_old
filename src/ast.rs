@@ -53,7 +53,7 @@ impl QualifiedId {
 impl fmt::Display for QualifiedId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for q in &self.quals {
-            try!(write!(f, "{}::", q));
+            write!(f, "{}::", q)?;
         }
         write!(f, "{}", self.base_id)
     }

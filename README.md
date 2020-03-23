@@ -23,7 +23,7 @@ unknownSyncMessage.ipdl from the error/ directory, because these fail
 due to the sync message checker, which has not been implemented in
 Rust.
 
-* You can run these tests with cargo check. It is likely that some
+* You can run these tests with `cargo test`. It is likely that some
 tests will fail.
 
 * Look at the list of revisions for
