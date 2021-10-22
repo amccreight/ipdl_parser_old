@@ -165,6 +165,7 @@ impl IPDLType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct StructTypeDef {
     qname: QualifiedId,
@@ -181,6 +182,7 @@ impl StructTypeDef {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UnionTypeDef {
     qname: QualifiedId,
@@ -258,12 +260,14 @@ impl MessageStrength {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ParamTypeDef {
     name: Identifier,
     param_type: IPDLType,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MessageTypeDef {
     name: Identifier,
