@@ -208,14 +208,14 @@ pub fn parse_file(
                 ParseError::UnrecognizedToken { token, expected: _ } => {
                     let (start, t, _) = token;
                     let loc = parser_state.resolve_location(start);
-                    format!(":{} Error: Unrecognized token `{}'.", loc, t.1)
+                    format!(":{} error: bad syntax near `{}'", loc, t.1)
                     // XXX Can anything useful be reported about |expected|?
                 }
                 ParseError::UnrecognizedEOF {
                     location: _,
                     expected: _,
                 } => {
-                    format!("Error: Unexpected EOF.")
+                    format!("error: bad syntax near `???'")
                 }
                 ParseError::ExtraToken { token } => {
                     let (start, t, _) = token;
