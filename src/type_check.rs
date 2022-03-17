@@ -501,12 +501,12 @@ fn declare_cxx_type(
                     if existing_type == full_name {
                         if refcounted != decl.decl_type.is_refcounted() {
                             return Errors::one(&cxx_type.loc(),
-                                               &format!("inconsistent refcounted status of type `{}', first declared at {}",
+                                               &format!("inconsistent refcounted status of type `{}`, first declared at {}",
                                                         full_name, decl.loc));
                         }
                         if moveonly != decl.decl_type.is_moveonly() {
                             return Errors::one(&cxx_type.loc(),
-                                               &format!("inconsistent moveonly status of type `{}', first declared at {}",
+                                               &format!("inconsistent moveonly status of type `{}`, first declared at {}",
                                                         full_name, decl.loc));
                         }
                         // This type has already been added, so don't do anything.
@@ -1252,9 +1252,8 @@ fn check_types_message(ptype: &ProtocolTypeDef, mtype: &MessageTypeDef) -> Error
         errors.append_one(
             &mtype.name.loc,
             &format!(
-                "asynchronous ctor/dtor message `{}' in protocol `{}' declares return values",
-                mname,
-                ptype.qname.short_name()
+                "asynchronous ctor/dtor message `{}' declares return values",
+                mname
             ),
         );
     }

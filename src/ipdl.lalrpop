@@ -56,7 +56,7 @@ pub TranslationUnit: TranslationUnit = {
                     TopLevelDecl::Protocol(p) => {
                         if protocol.is_some() {
                             parser_state.add_error(&ns.name.loc,
-                                                   "Only one protocol definition per file.");
+                                                   "only one protocol definition per file");
                         } else {
                             protocol = Some((ns, p));
                         }
@@ -196,7 +196,7 @@ ProtocolDefn: (Namespace, Protocol) = {
 
         if let FileType::Header = parser_state.file_type {
             parser_state.add_error(&name.loc,
-                                   "Can't define a protocol in a header. Do it in a protocol spec instead.");
+                                   "can't define a protocol in a header.  Do it in a protocol spec instead.");
         }
 
         let (nested, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
@@ -254,7 +254,7 @@ MessageDecl: MessageDecl = {
             Some(d) => d,
             None => {
                 parser_state.add_error(&msg.name.loc,
-                                       "Missing message direction.");
+                                       "missing message direction");
                 Direction::ToParent // Dummy value.
             }
         };
