@@ -1108,45 +1108,28 @@ fn get_protocol_type<'a>(
     tuts.get(tuid).unwrap().protocol.as_ref().unwrap()
 }
 
-fn manager_cycle_error(
-    tuts: &HashMap<TUId, TranslationUnitType>,
-    v: &Vec<TUId>,
-    tuid: &TUId,
-) -> Errors {
-    let mut errors = Errors::none();
-    let mut found = false;
-    for p in v {
-        if !found {
-            if p != tuid {
-                continue;
-            }
-            errors.append_one(
-                get_protocol_type(&tuts, &tuid).qname.loc(),
-                "cycle detected in manager/manages hierarchy:",
-            );
-            found = true;
-        }
-        let pt = get_protocol_type(&tuts, &p);
-        errors.append_one(pt.qname.loc(), &format!("\t{}", pt.qname));
-    }
-    assert!(found);
-    errors
-}
-
-fn protocol_managers_acyclic(
+fn protocol_managers_cycles(
     tuts: &HashMap<TUId, TranslationUnitType>,
     mut visited: &mut HashMap<TUId, ManagerCycleState>,
     mut stack: &mut Vec<TUId>,
     tuid: &TUId,
-) -> Errors {
+) -> Vec<String> {
     if let Some(state) = visited.get(tuid) {
         return match state {
-            &ManagerCycleState::Visiting => manager_cycle_error(&tuts, &stack, tuid),
-            &ManagerCycleState::Acyclic => Errors::none(),
+            &ManagerCycleState::Visiting => {
+                let cycle_names: Vec<String> = stack
+                    .iter()
+                    .chain([tuid.clone()].iter())
+                    .map(|p| get_protocol_type(&tuts, &p).qname.to_string())
+                    .collect::<Vec<String>>();
+                vec![format!("`{}'", cycle_names.join(" -> "))]
+            }
+            &ManagerCycleState::Acyclic => Vec::new(),
         };
     }
 
-    let mut errors = Errors::none();
+    let mut cycles = Vec::new();
+
     visited.insert(tuid.clone(), ManagerCycleState::Visiting);
 
     stack.push(tuid.clone());
@@ -1154,12 +1137,12 @@ fn protocol_managers_acyclic(
     let pt = get_protocol_type(&tuts, &tuid);
     for managee in &pt.manages {
         // Self-managed protocols are allowed, except at the top level.
-        // The top level case is checked in protocol_managers_acyclic.
+        // The top level case is checked in protocol_managers_cycles.
         if managee == tuid {
             continue;
         }
 
-        errors.append(protocol_managers_acyclic(
+        cycles.append(&mut protocol_managers_cycles(
             &tuts,
             &mut visited,
             &mut stack,
@@ -1171,7 +1154,7 @@ fn protocol_managers_acyclic(
 
     *visited.get_mut(tuid).unwrap() = ManagerCycleState::Acyclic;
 
-    errors
+    cycles
 }
 
 fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Errors {
@@ -1183,15 +1166,19 @@ fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Erro
         if tut.protocol.is_none() {
             continue;
         }
-
-        errors.append(protocol_managers_acyclic(
-            &tuts,
-            &mut visited,
-            &mut stack,
-            &tuid,
-        ));
-
         let pt = get_protocol_type(&tuts, &tuid);
+
+        let cycles = protocol_managers_cycles(&tuts, &mut visited, &mut stack, &tuid);
+        if cycles.len() > 0 {
+            errors.append_one(
+                pt.qname.loc(),
+                &format!(
+                    "cycle(s) detected in manager/manages hierarchy: {}",
+                    cycles.join(", ")
+                ),
+            );
+        }
+
         if pt.managers.len() == 1 && &pt.managers[0] == tuid {
             errors.append_one(
                 pt.qname.loc(),
