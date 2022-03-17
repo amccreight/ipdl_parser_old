@@ -6,19 +6,8 @@ use parser;
 use std::path::PathBuf;
 use type_check;
 
-pub fn compile(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> bool {
-    let maybe_tus = parser::parse(&include_dirs, file_names);
-
-    if maybe_tus.is_none() {
-        println!("Specification could not be parsed.");
-        return false;
-    }
-
-    let tus = maybe_tus.unwrap();
-    if let Err(err) = type_check::check(&tus) {
-        println!("Error(s) during type checking.\n{}", err);
-        return false;
-    }
-
-    true
+pub fn compile(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Result<(), String> {
+    let tus = parser::parse_with_errors(&include_dirs, file_names)?;
+    type_check::check(&tus)?;
+    Ok(())
 }

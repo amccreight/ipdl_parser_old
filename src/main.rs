@@ -71,5 +71,8 @@ fn main() {
         file_names.push(PathBuf::from(f));
     }
 
-    compiler::compile(&include_dirs, file_names);
+    match compiler::compile(&include_dirs, file_names) {
+        Ok(()) => println!("Compile successful"),
+        Err(e) => println!("{}", e),
+    }
 }

@@ -233,16 +233,19 @@ pub fn parse_file(
         })
 }
 
-fn print_include_context(include_context: &Vec<PathBuf>) {
+fn include_context_to_string(include_context: &Vec<PathBuf>) -> String {
+    let mut context = String::new();
     for pb in include_context {
-        println!("  in file included from `{}':", pb.display());
+        context.push_str(&format!("  in file included from `{}':\n", pb.display()));
     }
+    context
 }
 
-pub fn parse(
+fn parse_internal(
     include_dirs: &Vec<PathBuf>,
     file_names: Vec<PathBuf>,
-) -> Option<HashMap<TUId, TranslationUnit>> {
+    ignore_errors: bool,
+) -> Result<HashMap<TUId, TranslationUnit>, String> {
     let mut work_list: Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
     let mut parsed = HashMap::new();
     let mut visited = HashSet::new();
@@ -252,11 +255,14 @@ pub fn parse(
         let fc = match f.canonicalize() {
             Ok(fc) => fc,
             Err(_) => {
-                println!(
-                    "Error: can't locate file specified on the command line `{}'",
-                    f.display()
-                );
-                return None;
+                if ignore_errors {
+                    continue;
+                } else {
+                    return Err(format!(
+                        "Error: can't locate file specified on the command line `{}'",
+                        f.display()
+                    ));
+                }
             }
         };
 
@@ -275,9 +281,13 @@ pub fn parse(
             let tu = match parse_file(&include_resolver_cell, &curr_file) {
                 Ok(tu) => tu,
                 Err(message) => {
-                    print_include_context(&include_context);
-                    println!("{} {}", curr_file.display(), message);
-                    continue;
+                    if ignore_errors {
+                        continue;
+                    } else {
+                        let mut new_message = include_context_to_string(&include_context);
+                        new_message.push_str(&format!("{} {}", curr_file.display(), message));
+                        return Err(new_message);
+                    }
                 }
             };
 
@@ -308,5 +318,19 @@ pub fn parse(
         work_list = new_work_list;
     }
 
-    Some(parsed)
+    Ok(parsed)
+}
+
+pub fn parse_with_errors(
+    include_dirs: &Vec<PathBuf>,
+    file_names: Vec<PathBuf>,
+) -> Result<HashMap<TUId, TranslationUnit>, String> {
+    parse_internal(include_dirs, file_names, /* ignore_errors = */ false)
+}
+
+pub fn parse(
+    include_dirs: &Vec<PathBuf>,
+    file_names: Vec<PathBuf>,
+) -> HashMap<TUId, TranslationUnit> {
+    parse_internal(include_dirs, file_names, /* ignore_errors = */ true).unwrap()
 }

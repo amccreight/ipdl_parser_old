@@ -3,6 +3,9 @@ extern crate ipdl_parser;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 const BASE_PATH: [&'static str; 2] = [".", "tests"];
@@ -13,6 +16,18 @@ const ERROR_PATH: &'static str = "error";
 // enabled yet.
 
 const DISABLED_TESTS: &'static [&'static str] = &[];
+
+fn file_expected_error(file_name: &PathBuf) -> String {
+    let f = File::open(file_name).unwrap();
+
+    for line in BufReader::new(f).lines() {
+        if line.as_ref().unwrap().starts_with("//error:") {
+            return line.unwrap().split_off(2);
+        }
+    }
+    assert!(false, "Did not find any lines in the test file.");
+    String::new()
+}
 
 // XXX This does not run efficiently. If A includes B, then we end up
 // testing A and B two times each. At least for the non-error case we
@@ -43,9 +58,20 @@ fn test_files(test_file_path: &str, should_pass: bool) {
                 println!("Testing {:?}", entry.file_name());
             }
 
-            let file_names = vec![entry.path()];
-            let ok = ipdl_parser::compiler::compile(&include_dirs, file_names);
-            assert!(expected_result == ok);
+            let file_name = vec![entry.path()];
+            match ipdl_parser::compiler::compile(&include_dirs, file_name) {
+                Ok(()) => assert!(expected_result, "Expected test to pass"),
+                Err(actual_error) => {
+                    assert!(!expected_result, "Expected test to fail");
+                    let expected_error = file_expected_error(&entry.path());
+                    assert!(
+                        actual_error.find(&expected_error).is_some(),
+                        "Expected \"{}\" in \"{}\"",
+                        expected_error,
+                        actual_error
+                    );
+                }
+            }
         }
     }
 }
