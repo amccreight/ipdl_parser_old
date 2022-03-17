@@ -97,22 +97,25 @@ enum IPDLType {
 }
 
 impl IPDLType {
+    // XXX This has to be the same as the IPDL Python compiler's class names,
+    // to perfectly match the error messages, because Type::typename is defined
+    // as self.__class__.__name__.
     fn type_name(&self) -> &'static str {
         match self {
-            &IPDLType::ImportedCxxType(_, _, _) => "imported C++ type",
-            &IPDLType::MessageType(_) => "message type",
-            &IPDLType::ProtocolType(_) => "protocol type",
-            &IPDLType::ActorType(_, _) => "actor type",
-            &IPDLType::StructType(_) => "struct type",
-            &IPDLType::UnionType(_) => "union type",
-            &IPDLType::ArrayType(_) => "array type",
-            &IPDLType::MaybeType(_) => "maybe type",
-            &IPDLType::ShmemType(_) => "shmem type",
-            &IPDLType::ByteBufType(_) => "bytebuf type",
-            &IPDLType::FDType(_) => "fd type",
-            &IPDLType::EndpointType(_) => "endpoint type",
-            &IPDLType::ManagedEndpointType(_) => "managed endpoint type",
-            &IPDLType::UniquePtrType(_) => "uniqueptr type",
+            &IPDLType::ImportedCxxType(_, _, _) => "ImportedCxxType",
+            &IPDLType::MessageType(_) => "MessageType",
+            &IPDLType::ProtocolType(_) => "ProtocolType",
+            &IPDLType::ActorType(_, _) => "ActorType",
+            &IPDLType::StructType(_) => "StructType",
+            &IPDLType::UnionType(_) => "UnionType",
+            &IPDLType::ArrayType(_) => "ArrayType",
+            &IPDLType::MaybeType(_) => "MaybeType",
+            &IPDLType::ShmemType(_) => "ShmemType",
+            &IPDLType::ByteBufType(_) => "ByteBufType",
+            &IPDLType::FDType(_) => "FDType",
+            &IPDLType::EndpointType(_) => "EndpointType",
+            &IPDLType::ManagedEndpointType(_) => "ManagedEndpointType",
+            &IPDLType::UniquePtrType(_) => "UniquePtrType",
         }
     }
 
