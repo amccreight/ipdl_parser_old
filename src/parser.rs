@@ -13,7 +13,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use ast::{Direction, FileType, Protocol, StructField, TUId, TranslationUnit, TypeSpec, UsingStmt, Location};
-use ipdl::parse_TranslationUnit;
+use ipdl::TranslationUnitParser;
 use errors::Errors;
 
 use uncommenter::uncomment;
@@ -177,7 +177,7 @@ pub fn parse_file(include_resolver: &RefCell<IncludeResolver>, file_name: &PathB
     }
 
     let parser_state = ParserState::new(&include_resolver, file_type, file_name, newline_offsets);
-    parse_TranslationUnit(&parser_state, &text)
+    TranslationUnitParser::new().parse(&parser_state, &text)
         .map_err(|e| {
             match e {
                 ParseError::InvalidToken { location } => {
@@ -185,15 +185,14 @@ pub fn parse_file(include_resolver: &RefCell<IncludeResolver>, file_name: &PathB
                     format!(":{} Unexpected token.", loc)
                 },
                 ParseError::UnrecognizedToken { token, expected: _ } => {
-                    match token {
-                        Some((start, t, _)) => {
-                            let loc = parser_state.resolve_location(start);
-                            format!(":{} Error: Unrecognized token `{}'.",
-                                    loc, t.1)
-                        },
-                        None => String::from(" Unexpected EOL."),
-                    }
+                    let (start, t, _) = token;
+                    let loc = parser_state.resolve_location(start);
+                    format!(":{} Error: Unrecognized token `{}'.",
+                            loc, t.1)
                     // XXX Can anything useful be reported about |expected|?
+                },
+                ParseError::UnrecognizedEOF { location: _, expected: _ } => {
+                    format!("Error: Unexpected EOF.")
                 },
                 ParseError::ExtraToken{ token } => {
                     let (start, t, _) = token;
@@ -250,7 +249,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 Err(message) => {
                     print_include_context(&include_context);
                     println!("{} {}", curr_file.display(), message);
-                    return None
+                    continue
                 }
             };
 

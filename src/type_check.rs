@@ -165,6 +165,7 @@ impl IPDLType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct StructTypeDef {
     qname: QualifiedId,
@@ -181,6 +182,7 @@ impl StructTypeDef {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UnionTypeDef {
     qname: QualifiedId,
@@ -258,12 +260,14 @@ impl MessageStrength {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ParamTypeDef {
     name: Identifier,
     param_type: IPDLType,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MessageTypeDef {
     name: Identifier,
@@ -1225,7 +1229,7 @@ pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
     let tus_vec = tus.iter().collect::<Vec<_>>();
 
     for &(tuid, tu) in &tus_vec {
-        try!(check_translation_unit(&tu));
+        check_translation_unit(&tu)?;
 
         // Create top-level type decl for all protocols.
         let old_entry = tuts.insert(tuid.clone(), TranslationUnitType::new(&tu.protocol));
@@ -1233,13 +1237,13 @@ pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
     }
 
     for &(tuid, tu) in &tus_vec {
-        try!(gather_decls_tu(&tus, &mut tuts, &tuid, &tu));
+        gather_decls_tu(&tus, &mut tuts, &tuid, &tu)?;
     }
 
     let tuts_vec = tuts.iter().collect::<Vec<_>>();
     let mut defined = HashMap::new();
     for &(tuid, tut) in &tuts_vec {
-        try!(check_types_tu(&tus, &tuts, &mut defined, &tuid, &tut));
+        check_types_tu(&tus, &tuts, &mut defined, &tuid, &tut)?;
     }
 
     Ok(())
