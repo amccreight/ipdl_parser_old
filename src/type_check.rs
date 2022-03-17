@@ -1159,14 +1159,18 @@ fn protocol_managers_cycles(
 
 fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Errors {
     let mut errors = Errors::none();
-    let mut visited = HashMap::new();
-    let mut stack = Vec::new();
 
     for (tuid, tut) in tuts {
         if tut.protocol.is_none() {
             continue;
         }
         let pt = get_protocol_type(&tuts, &tuid);
+
+        // To match the behavior of the Python IPDL compiler in error cases, reset the
+        // visited stack after each protocol. It would be more efficient to maintain it.
+        // See bug 1760229.
+        let mut visited = HashMap::new();
+        let mut stack = Vec::new();
 
         let cycles = protocol_managers_cycles(&tuts, &mut visited, &mut stack, &tuid);
         if cycles.len() > 0 {
