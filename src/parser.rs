@@ -204,6 +204,8 @@ pub fn parse_file(
                 ParseError::InvalidToken { location } => {
                     let loc = parser_state.resolve_location(location);
                     format!(":{} Unexpected token.", loc)
+                    // XXX This does not include a token, so we can't precisely
+                    // match the Python compiler's error.
                 }
                 ParseError::UnrecognizedToken { token, expected: _ } => {
                     let (start, t, _) = token;
