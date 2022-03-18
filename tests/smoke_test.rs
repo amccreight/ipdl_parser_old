@@ -1,9 +1,9 @@
 extern crate ipdl_parser;
 
-use std::fs;
-use std::path::PathBuf;
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::fs;
+use std::path::PathBuf;
 
 const BASE_PATH: [&'static str; 2] = [".", "tests"];
 const OK_PATH: &'static str = "ok";
@@ -12,8 +12,7 @@ const ERROR_PATH: &'static str = "error";
 // Tests in error/ are disabled because the given checking is not
 // enabled yet.
 
-const DISABLED_TESTS: &'static [ &'static str ] = &[
-];
+const DISABLED_TESTS: &'static [&'static str] = &[];
 
 // XXX This does not run efficiently. If A includes B, then we end up
 // testing A and B two times each. At least for the non-error case we
@@ -35,7 +34,10 @@ fn test_files(test_file_path: &str, should_pass: bool) {
         if let Ok(entry) = entry {
             let mut expected_result = should_pass;
             if !should_pass && disabled_tests.contains(entry.path().file_name().unwrap()) {
-                println!("Expecting test to pass when it should fail {:?}", entry.file_name());
+                println!(
+                    "Expecting test to pass when it should fail {:?}",
+                    entry.file_name()
+                );
                 expected_result = true;
             } else {
                 println!("Testing {:?}", entry.file_name());

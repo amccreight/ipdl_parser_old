@@ -2,12 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::{HashMap, HashSet};
 use ast::*;
 use errors::Errors;
+use std::collections::{HashMap, HashSet};
 
-
-const BUILTIN_TYPES: &'static [ &'static str ] = &[
+const BUILTIN_TYPES: &'static [&'static str] = &[
     // C types
     "bool",
     "char",
@@ -16,7 +15,6 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "long",
     "float",
     "double",
-
     // stdint types
     "int8_t",
     "uint8_t",
@@ -28,11 +26,9 @@ const BUILTIN_TYPES: &'static [ &'static str ] = &[
     "uint64_t",
     "intptr_t",
     "uintptr_t",
-
     // stddef types
     "size_t",
     "ssize_t",
-
     // Mozilla types: "less" standard things we know how serialize/deserialize
     "nsresult",
     "nsString",
@@ -52,7 +48,6 @@ fn builtin_from_string(tname: &str) -> TypeSpec {
 const DELETE_MESSAGE_NAME: &'static str = "__delete__";
 const CONSTRUCTOR_SUFFIX: &'static str = "Constructor";
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct TypeRef {
     tu: TUId,
@@ -61,16 +56,17 @@ struct TypeRef {
 
 impl TypeRef {
     fn new(tu: &TUId, index: usize) -> TypeRef {
-        TypeRef { tu: tu.clone(), index: index }
+        TypeRef {
+            tu: tu.clone(),
+            index: index,
+        }
     }
 
-    fn lookup_struct<'a>(&self,
-                         tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a StructTypeDef {
+    fn lookup_struct<'a>(&self, tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a StructTypeDef {
         &tuts.get(&self.tu).unwrap().structs[self.index]
     }
 
-    fn lookup_union<'a>(&self,
-                         tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a UnionTypeDef {
+    fn lookup_union<'a>(&self, tuts: &'a HashMap<TUId, TranslationUnitType>) -> &'a UnionTypeDef {
         &tuts.get(&self.tu).unwrap().unions[self.index]
     }
 }
@@ -80,7 +76,11 @@ impl TypeRef {
 // may be different.
 #[derive(Debug, Clone)]
 enum IPDLType {
-    ImportedCxxType(QualifiedId, bool /* refcounted */, bool /* moveonly */),
+    ImportedCxxType(
+        QualifiedId,
+        bool, /* refcounted */
+        bool, /* moveonly */
+    ),
     MessageType(TypeRef),
     ProtocolType(TUId),
     ActorType(TUId, bool /* nullable */),
@@ -95,7 +95,6 @@ enum IPDLType {
     ManagedEndpointType(QualifiedId),
     UniquePtrType(Box<IPDLType>),
 }
-
 
 impl IPDLType {
     fn type_name(&self) -> &'static str {
@@ -129,8 +128,13 @@ impl IPDLType {
             IPDLType::ActorType(_, _) => (),
             _ => {
                 if type_spec.nullable {
-                    errors.append_one(type_spec.loc(),
-                                      &format!("`nullable' qualifier for {} makes no sense", itype.type_name()));
+                    errors.append_one(
+                        type_spec.loc(),
+                        &format!(
+                            "`nullable' qualifier for {} makes no sense",
+                            itype.type_name()
+                        ),
+                    );
                 }
             }
         }
@@ -174,7 +178,10 @@ struct StructTypeDef {
 
 impl StructTypeDef {
     fn new(ns: &Namespace) -> StructTypeDef {
-        StructTypeDef { qname: ns.qname(), fields: Vec::new() }
+        StructTypeDef {
+            qname: ns.qname(),
+            fields: Vec::new(),
+        }
     }
 
     fn append_field(&mut self, field_type: IPDLType) {
@@ -191,7 +198,10 @@ struct UnionTypeDef {
 
 impl UnionTypeDef {
     fn new(ns: &Namespace) -> UnionTypeDef {
-        UnionTypeDef { qname: ns.qname(), components: Vec::new() }
+        UnionTypeDef {
+            qname: ns.qname(),
+            components: Vec::new(),
+        }
     }
 
     fn append_component(&mut self, component_type: IPDLType) {
@@ -228,7 +238,6 @@ impl MessageType {
         }
     }
 }
-
 
 struct MessageStrength {
     send_semantics: SendSemantics,
@@ -287,9 +296,15 @@ impl MessageTypeDef {
         assert!(!mtype.is_ctor() || name.ends_with(CONSTRUCTOR_SUFFIX));
         MessageTypeDef {
             name: Identifier::new(String::from(name), md.name.loc.clone()),
-            send_semantics: md.send_semantics, nested: md.nested, prio: md.prio,
-            direction: md.direction, params: Vec::new(), returns: Vec::new(),
-            mtype: mtype, compress: md.compress, verify: md.verify
+            send_semantics: md.send_semantics,
+            nested: md.nested,
+            prio: md.prio,
+            direction: md.direction,
+            params: Vec::new(),
+            returns: Vec::new(),
+            mtype: mtype,
+            compress: md.compress,
+            verify: md.verify,
         }
     }
 
@@ -314,7 +329,8 @@ impl MessageTypeDef {
     }
 
     fn converts_to(&self, protocol: &ProtocolTypeDef) -> bool {
-        self.message_strength().converts_to(&protocol.message_strength())
+        self.message_strength()
+            .converts_to(&protocol.message_strength())
     }
 
     pub fn is_async(&self) -> bool {
@@ -345,9 +361,14 @@ struct ProtocolTypeDef {
 impl ProtocolTypeDef {
     fn new(&(ref ns, ref p): &(Namespace, Protocol)) -> ProtocolTypeDef {
         ProtocolTypeDef {
-            qname: ns.qname(), send_semantics: p.send_semantics, nested: p.nested,
-            managers: Vec::new(), manages: Vec::new(), messages: Vec::new(),
-            has_delete: false, has_reentrant_delete: false,
+            qname: ns.qname(),
+            send_semantics: p.send_semantics,
+            nested: p.nested,
+            managers: Vec::new(),
+            manages: Vec::new(),
+            messages: Vec::new(),
+            has_delete: false,
+            has_reentrant_delete: false,
         }
     }
 
@@ -364,7 +385,8 @@ impl ProtocolTypeDef {
     }
 
     fn converts_to(&self, other: &ProtocolTypeDef) -> bool {
-        self.message_strength().converts_to(&other.message_strength())
+        self.message_strength()
+            .converts_to(&other.message_strength())
     }
 }
 
@@ -382,26 +404,32 @@ struct Decl {
 impl Decl {
     fn new(loc: &Location, decl_type: IPDLType, short_name: String) -> Decl {
         Decl {
-            loc: loc.clone(), decl_type: decl_type,
-            short_name: short_name, full_name: None
+            loc: loc.clone(),
+            decl_type: decl_type,
+            short_name: short_name,
+            full_name: None,
         }
     }
 
     fn new_from_qid(qid: &QualifiedId, decl_type: IPDLType) -> Decl {
         Decl {
-            loc: qid.loc().clone(), decl_type: decl_type,
-            short_name: qid.short_name(), full_name: qid.full_name()
+            loc: qid.loc().clone(),
+            decl_type: decl_type,
+            short_name: qid.short_name(),
+            full_name: qid.full_name(),
         }
     }
 }
 
 struct SymbolTable {
-    scopes: Vec<HashMap<String, Decl>>
+    scopes: Vec<HashMap<String, Decl>>,
 }
 
 impl SymbolTable {
     fn new() -> SymbolTable {
-        SymbolTable { scopes: vec![HashMap::new()] }
+        SymbolTable {
+            scopes: vec![HashMap::new()],
+        }
     }
 
     fn enter_scope(&mut self) {
@@ -417,7 +445,7 @@ impl SymbolTable {
     fn lookup(&self, sym: &str) -> Option<Decl> {
         for s in &self.scopes {
             if let Some(e) = s.get(sym).clone() {
-                return Some(e.clone())
+                return Some(e.clone());
             }
         }
         None
@@ -425,12 +453,20 @@ impl SymbolTable {
 
     fn declare_inner(&mut self, name: &str, decl: Decl) -> Errors {
         if let Some(old_decl) = self.lookup(name) {
-            return Errors::one(&decl.loc,
-                               &format!("redeclaration of symbol `{}', first declared at {}",
-                                        name, old_decl.loc))
+            return Errors::one(
+                &decl.loc,
+                &format!(
+                    "redeclaration of symbol `{}', first declared at {}",
+                    name, old_decl.loc
+                ),
+            );
         }
 
-        let old_binding = self.scopes.last_mut().unwrap().insert(String::from(name), decl);
+        let old_binding = self
+            .scopes
+            .last_mut()
+            .unwrap()
+            .insert(String::from(name), decl);
         assert!(old_binding.is_none());
         Errors::none()
     }
@@ -444,14 +480,18 @@ impl SymbolTable {
     }
 }
 
-fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: bool, moveonly: bool) -> Errors {
+fn declare_cxx_type(
+    sym_tab: &mut SymbolTable,
+    cxx_type: &TypeSpec,
+    refcounted: bool,
+    moveonly: bool,
+) -> Errors {
     let ipdl_type = match cxx_type.spec.full_name() {
-        Some(ref n) if n == "mozilla::ipc::Shmem" =>
-            IPDLType::ShmemType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::ByteBuf" =>
-            IPDLType::ByteBufType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::FileDescriptor" =>
-            IPDLType::FDType(cxx_type.spec.clone()),
+        Some(ref n) if n == "mozilla::ipc::Shmem" => IPDLType::ShmemType(cxx_type.spec.clone()),
+        Some(ref n) if n == "mozilla::ipc::ByteBuf" => IPDLType::ByteBufType(cxx_type.spec.clone()),
+        Some(ref n) if n == "mozilla::ipc::FileDescriptor" => {
+            IPDLType::FDType(cxx_type.spec.clone())
+        }
         _ => {
             let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted, moveonly);
             let full_name = format!("{}", cxx_type.spec);
@@ -462,20 +502,20 @@ fn declare_cxx_type(sym_tab: &mut SymbolTable, cxx_type: &TypeSpec, refcounted: 
                         if refcounted != decl.decl_type.is_refcounted() {
                             return Errors::one(&cxx_type.loc(),
                                                &format!("inconsistent refcounted status of type `{}', first declared at {}",
-                                                        full_name, decl.loc))
+                                                        full_name, decl.loc));
                         }
                         if moveonly != decl.decl_type.is_moveonly() {
                             return Errors::one(&cxx_type.loc(),
                                                &format!("inconsistent moveonly status of type `{}', first declared at {}",
-                                                        full_name, decl.loc))
+                                                        full_name, decl.loc));
                         }
                         // This type has already been added, so don't do anything.
-                        return Errors::none()
+                        return Errors::none();
                     }
                 };
             };
             ipdl_type
-        },
+        }
     };
     sym_tab.declare(Decl::new_from_qid(&cxx_type.spec, ipdl_type))
 }
@@ -488,15 +528,18 @@ struct TranslationUnitType {
 
 impl TranslationUnitType {
     fn new(maybe_protocol: &Option<(Namespace, Protocol)>) -> TranslationUnitType {
-        let protocol = maybe_protocol.as_ref().map(|ref p| ProtocolTypeDef::new(&p));
-        TranslationUnitType { structs: Vec::new(), unions: Vec::new(), protocol: protocol }
+        let protocol = maybe_protocol
+            .as_ref()
+            .map(|ref p| ProtocolTypeDef::new(&p));
+        TranslationUnitType {
+            structs: Vec::new(),
+            unions: Vec::new(),
+            protocol: protocol,
+        }
     }
 }
 
-
-fn declare_protocol(sym_tab: &mut SymbolTable,
-                    tuid: &TUId,
-                    ns: &Namespace) -> Errors {
+fn declare_protocol(sym_tab: &mut SymbolTable, tuid: &TUId, ns: &Namespace) -> Errors {
     let mut errors = Errors::none();
 
     let p_type = IPDLType::ProtocolType(tuid.clone());
@@ -504,11 +547,20 @@ fn declare_protocol(sym_tab: &mut SymbolTable,
 
     let ref loc = ns.name.loc;
     let mut declare_endpoint = |is_managed: bool, side: &str| {
-        let endpoint_str = if is_managed { "ManagedEndpoint" } else { "Endpoint" };
-        let full_id = Identifier::new(format!("{}<{}{}>", endpoint_str, ns.qname(), side),
-                                      loc.clone());
+        let endpoint_str = if is_managed {
+            "ManagedEndpoint"
+        } else {
+            "Endpoint"
+        };
+        let full_id = Identifier::new(
+            format!("{}<{}{}>", endpoint_str, ns.qname(), side),
+            loc.clone(),
+        );
         let namespaces = vec!["mozilla".to_string(), "ipc".to_string()];
-        let full_qid = QualifiedId { base_id: full_id, quals: namespaces };
+        let full_qid = QualifiedId {
+            base_id: full_id,
+            quals: namespaces,
+        };
         let endpoint_type = if is_managed {
             IPDLType::ManagedEndpointType(full_qid)
         } else {
@@ -525,20 +577,24 @@ fn declare_protocol(sym_tab: &mut SymbolTable,
     errors
 }
 
-
-fn declare_usings(mut sym_tab: &mut SymbolTable,
-                  tu: &TranslationUnit) -> Errors {
+fn declare_usings(mut sym_tab: &mut SymbolTable, tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
     for u in &tu.using {
-        errors.append(declare_cxx_type(&mut sym_tab, &u.cxx_type, u.refcounted, u.moveonly));
+        errors.append(declare_cxx_type(
+            &mut sym_tab,
+            &u.cxx_type,
+            u.refcounted,
+            u.moveonly,
+        ));
     }
     errors
 }
 
-
-fn declare_structs_and_unions(sym_tab: &mut SymbolTable,
-                              tuid: &TUId,
-                              tu: &TranslationUnit) -> Errors {
+fn declare_structs_and_unions(
+    sym_tab: &mut SymbolTable,
+    tuid: &TUId,
+    tu: &TranslationUnit,
+) -> Errors {
     let mut errors = Errors::none();
     let mut index = 0;
 
@@ -558,10 +614,11 @@ fn declare_structs_and_unions(sym_tab: &mut SymbolTable,
     errors
 }
 
-
-fn gather_decls_struct(sym_tab: &mut SymbolTable,
-                       &(ref ns, ref sd): &(Namespace, Vec<StructField>),
-                       sdef: &mut StructTypeDef) -> Errors {
+fn gather_decls_struct(
+    sym_tab: &mut SymbolTable,
+    &(ref ns, ref sd): &(Namespace, Vec<StructField>),
+    sdef: &mut StructTypeDef,
+) -> Errors {
     let mut errors = Errors::none();
 
     sym_tab.enter_scope();
@@ -570,9 +627,15 @@ fn gather_decls_struct(sym_tab: &mut SymbolTable,
         let fty_string = f.type_spec.spec.to_string();
         let fty_decl = sym_tab.lookup(&fty_string);
         if fty_decl.is_none() {
-            errors.append_one(&f.name.loc,
-                              &format!("field `{}' of struct `{}' has unknown type `{}'",
-                                       f.name, ns.qname().short_name(), fty_string));
+            errors.append_one(
+                &f.name.loc,
+                &format!(
+                    "field `{}' of struct `{}' has unknown type `{}'",
+                    f.name,
+                    ns.qname().short_name(),
+                    fty_string
+                ),
+            );
             continue;
         }
         let (errors2, f_type) = fty_decl.unwrap().decl_type.canonicalize(&f.type_spec);
@@ -587,19 +650,25 @@ fn gather_decls_struct(sym_tab: &mut SymbolTable,
     errors
 }
 
-
-fn gather_decls_union(sym_tab: &mut SymbolTable,
-                      &(ref ns, ref ud): &(Namespace, Vec<TypeSpec>),
-                      udef: &mut UnionTypeDef) -> Errors {
+fn gather_decls_union(
+    sym_tab: &mut SymbolTable,
+    &(ref ns, ref ud): &(Namespace, Vec<TypeSpec>),
+    udef: &mut UnionTypeDef,
+) -> Errors {
     let mut errors = Errors::none();
 
     for c in ud {
         let c_string = c.spec.to_string();
         let c_decl = sym_tab.lookup(&c_string);
         if c_decl.is_none() {
-            errors.append_one(c.loc(),
-                              &format!("unknown component type `{}' of union `{}'",
-                                       c_string, ns.qname().short_name()));
+            errors.append_one(
+                c.loc(),
+                &format!(
+                    "unknown component type `{}' of union `{}'",
+                    c_string,
+                    ns.qname().short_name()
+                ),
+            );
             continue;
         }
         let (errors2, c_ty) = c_decl.unwrap().decl_type.canonicalize(&c);
@@ -610,16 +679,24 @@ fn gather_decls_union(sym_tab: &mut SymbolTable,
     errors
 }
 
-
-fn gather_decls_manager(sym_tab: &mut SymbolTable,
-                      managee: &(Namespace, Protocol),
-                      managee_type: &mut ProtocolTypeDef,
-                      manager: &Identifier) -> Errors {
+fn gather_decls_manager(
+    sym_tab: &mut SymbolTable,
+    managee: &(Namespace, Protocol),
+    managee_type: &mut ProtocolTypeDef,
+    manager: &Identifier,
+) -> Errors {
     let manager_decl = match sym_tab.lookup(&manager.id) {
         Some(decl) => decl,
-        None => return Errors::one(&manager.loc,
-                                   &format!("protocol `{}' referenced as |manager| of `{}' has not been declared",
-                                            manager.id, managee.0.qname().short_name())),
+        None => {
+            return Errors::one(
+                &manager.loc,
+                &format!(
+                    "protocol `{}' referenced as |manager| of `{}' has not been declared",
+                    manager.id,
+                    managee.0.qname().short_name()
+                ),
+            )
+        }
     };
 
     if let &IPDLType::ProtocolType(ref pt) = &manager_decl.decl_type {
@@ -630,20 +707,27 @@ fn gather_decls_manager(sym_tab: &mut SymbolTable,
     return Errors::one(&manager.loc,
                        &format!("entity `{}' referenced as |manager| of `{}' is not of `protocol' type; instead it is a {}",
                                 manager.id, managee.0.qname().short_name(),
-                                manager_decl.decl_type.type_name()))
+                                manager_decl.decl_type.type_name()));
 }
 
-
-fn gather_decls_manages(sym_tab: &mut SymbolTable,
-                        manager: &(Namespace, Protocol),
-                        manager_type: &mut ProtocolTypeDef,
-                        managee: &Identifier) -> Errors {
-
+fn gather_decls_manages(
+    sym_tab: &mut SymbolTable,
+    manager: &(Namespace, Protocol),
+    manager_type: &mut ProtocolTypeDef,
+    managee: &Identifier,
+) -> Errors {
     let managee_decl = match sym_tab.lookup(&managee.id) {
         Some(decl) => decl,
-        None => return Errors::one(&managee.loc,
-                                   &format!("protocol `{}', managed by `{}', has not been declared",
-                                            managee.id, manager.0.qname().short_name())),
+        None => {
+            return Errors::one(
+                &managee.loc,
+                &format!(
+                    "protocol `{}', managed by `{}', has not been declared",
+                    managee.id,
+                    manager.0.qname().short_name()
+                ),
+            )
+        }
     };
 
     if let &IPDLType::ProtocolType(ref pt) = &managee_decl.decl_type {
@@ -651,16 +735,23 @@ fn gather_decls_manages(sym_tab: &mut SymbolTable,
         return Errors::none();
     }
 
-    return Errors::one(&managee.loc,
-                       &format!("{} declares itself managing a non-`protocol' entity `{}' that is a {}",
-                                manager.0.qname().short_name(), managee.id, managee_decl.decl_type.type_name()))
+    return Errors::one(
+        &managee.loc,
+        &format!(
+            "{} declares itself managing a non-`protocol' entity `{}' that is a {}",
+            manager.0.qname().short_name(),
+            managee.id,
+            managee_decl.decl_type.type_name()
+        ),
+    );
 }
 
-
-fn gather_decls_message(sym_tab: &mut SymbolTable,
-                        tuid: &TUId,
-                        protocol_type: &mut ProtocolTypeDef,
-                        md: &MessageDecl) -> Errors {
+fn gather_decls_message(
+    sym_tab: &mut SymbolTable,
+    tuid: &TUId,
+    protocol_type: &mut ProtocolTypeDef,
+    md: &MessageDecl,
+) -> Errors {
     let mut errors = Errors::none();
     let mut message_name = md.name.id.clone();
     let mut mtype = MessageType::Other;
@@ -671,9 +762,14 @@ fn gather_decls_message(sym_tab: &mut SymbolTable,
             message_name += CONSTRUCTOR_SUFFIX;
             mtype = MessageType::Ctor(pt.clone());
         } else {
-            errors.append_one(&md.name.loc,
-                              &format!("message name `{}' already declared as `{}'",
-                                       md.name, decl.decl_type.type_name()));
+            errors.append_one(
+                &md.name.loc,
+                &format!(
+                    "message name `{}' already declared as `{}'",
+                    md.name,
+                    decl.decl_type.type_name()
+                ),
+            );
             // If we error here, no big deal; move on to find more.
         }
     }
@@ -698,12 +794,19 @@ fn gather_decls_message(sym_tab: &mut SymbolTable,
                     errors.append(errors2);
                     let decl = Decl::new(param.type_spec.loc(), t.clone(), param.name.id.clone());
                     errors.append(sym_tab.declare(decl));
-                    Some(ParamTypeDef { name: param.name.clone(), param_type: t })
+                    Some(ParamTypeDef {
+                        name: param.name.clone(),
+                        param_type: t,
+                    })
                 }
                 None => {
-                    errors.append_one(param.type_spec.loc(),
-                                      &format!("argument typename `{}' of message `{}' has not been declared",
-                                               &pt_name, message_name));
+                    errors.append_one(
+                        param.type_spec.loc(),
+                        &format!(
+                            "argument typename `{}' of message `{}' has not been declared",
+                            &pt_name, message_name
+                        ),
+                    );
                     None
                 }
             }
@@ -733,10 +836,12 @@ fn gather_decls_message(sym_tab: &mut SymbolTable,
     errors
 }
 
-fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
-                         tuid: &TUId,
-                         p: &(Namespace, Protocol),
-                         mut p_type: &mut ProtocolTypeDef) -> Errors {
+fn gather_decls_protocol(
+    mut sym_tab: &mut SymbolTable,
+    tuid: &TUId,
+    p: &(Namespace, Protocol),
+    mut p_type: &mut ProtocolTypeDef,
+) -> Errors {
     let mut errors = Errors::none();
 
     sym_tab.enter_scope();
@@ -745,26 +850,41 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
         let mut seen_managers = HashSet::new();
         for manager in &p.1.managers {
             if seen_managers.contains(&manager.id) {
-                errors.append_one(&manager.loc,
-                                  &format!("manager `{}' appears multiple times",
-                                           manager.id));
+                errors.append_one(
+                    &manager.loc,
+                    &format!("manager `{}' appears multiple times", manager.id),
+                );
                 continue;
             }
 
             seen_managers.insert(manager.id.clone());
 
-            errors.append(gather_decls_manager(&mut sym_tab, &p, &mut p_type, &manager));
+            errors.append(gather_decls_manager(
+                &mut sym_tab,
+                &p,
+                &mut p_type,
+                &manager,
+            ));
         }
     }
 
     for managee in &p.1.manages {
-        errors.append(gather_decls_manages(&mut sym_tab, &p, &mut p_type, &managee));
+        errors.append(gather_decls_manages(
+            &mut sym_tab,
+            &p,
+            &mut p_type,
+            &managee,
+        ));
     }
 
     if p.1.managers.len() == 0 && p.1.messages.len() == 0 {
-        errors.append_one(&p.0.name.loc,
-                          &format!("top-level protocol `{}' cannot be empty",
-                                   p.0.qname().short_name()));
+        errors.append_one(
+            &p.0.name.loc,
+            &format!(
+                "top-level protocol `{}' cannot be empty",
+                p.0.qname().short_name()
+            ),
+        );
     }
 
     for md in &p.1.messages {
@@ -774,18 +894,22 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
     let delete_type = sym_tab.lookup(DELETE_MESSAGE_NAME);
     p_type.has_delete = delete_type.is_some();
     if !(p_type.has_delete || p_type.is_top_level()) {
-        errors.append_one(&p.0.name.loc,
-                          &format!("destructor declaration `{}(...)' required for managed protocol `{}'",
-                                   DELETE_MESSAGE_NAME , p.0.qname().short_name()));
+        errors.append_one(
+            &p.0.name.loc,
+            &format!(
+                "destructor declaration `{}(...)' required for managed protocol `{}'",
+                DELETE_MESSAGE_NAME,
+                p.0.qname().short_name()
+            ),
+        );
     }
 
     p_type.has_reentrant_delete = match delete_type {
         Some(decl) => match decl.decl_type {
-            IPDLType::MessageType(tr) =>
-                p_type.messages[tr.index].is_intr(),
+            IPDLType::MessageType(tr) => p_type.messages[tr.index].is_intr(),
             _ => panic!("Invalid message type for delete message"),
         },
-        None => false
+        None => false,
     };
 
     // FIXME/cjones Declare all the little C++ thingies that will
@@ -799,11 +923,12 @@ fn gather_decls_protocol(mut sym_tab: &mut SymbolTable,
     errors
 }
 
-
-fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
-                   tuts: &mut HashMap<TUId, TranslationUnitType>,
-                   tuid: &TUId,
-                   tu: &TranslationUnit) -> Result<(), String> {
+fn gather_decls_tu(
+    tus: &HashMap<TUId, TranslationUnit>,
+    tuts: &mut HashMap<TUId, TranslationUnitType>,
+    tuid: &TUId,
+    tu: &TranslationUnit,
+) -> Result<(), String> {
     let mut errors = Errors::none();
     let mut sym_tab = SymbolTable::new();
     let tut = &mut tuts.get_mut(tuid).unwrap();
@@ -816,20 +941,28 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
     for include_tuid in &tu.includes {
         let include_tu = tus.get(include_tuid).unwrap();
         match include_tu.protocol {
-            Some(ref p) =>
-                errors.append(declare_protocol(&mut sym_tab, &include_tuid, &p.0)),
+            Some(ref p) => errors.append(declare_protocol(&mut sym_tab, &include_tuid, &p.0)),
             None => {
                 // This is a header.  Import its "exported" globals into our scope.
                 errors.append(declare_usings(&mut sym_tab, &include_tu));
-                errors.append(declare_structs_and_unions(&mut sym_tab, &include_tuid, &include_tu));
-            },
+                errors.append(declare_structs_and_unions(
+                    &mut sym_tab,
+                    &include_tuid,
+                    &include_tu,
+                ));
+            }
         }
     }
 
     // Declare builtin C++ types.
     for t in BUILTIN_TYPES {
         let cxx_type = builtin_from_string(t);
-        errors.append(declare_cxx_type(&mut sym_tab, &cxx_type, false /* refcounted */, false /* moveonly */));
+        errors.append(declare_cxx_type(
+            &mut sym_tab,
+            &cxx_type,
+            false, /* refcounted */
+            false, /* moveonly */
+        ));
     }
 
     // Declare imported C++ types.
@@ -851,7 +984,11 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
     // XXX It might be cleaner to do a zip iteration over {tu,tut}.structs
     let mut index = 0;
     for su in &tu.structs {
-        errors.append(gather_decls_struct(&mut sym_tab, &su, &mut tut.structs[index]));
+        errors.append(gather_decls_struct(
+            &mut sym_tab,
+            &su,
+            &mut tut.structs[index],
+        ));
         index += 1;
     }
     index = 0;
@@ -865,12 +1002,16 @@ fn gather_decls_tu(tus: &HashMap<TUId, TranslationUnit>,
     // sense.
 
     if let &Some(ref p) = &tu.protocol {
-        errors.append(gather_decls_protocol(&mut sym_tab, &tuid, &p, &mut tut.protocol.as_mut().unwrap()));
+        errors.append(gather_decls_protocol(
+            &mut sym_tab,
+            &tuid,
+            &p,
+            &mut tut.protocol.as_mut().unwrap(),
+        ));
     }
 
     errors.to_result()
 }
-
 
 enum FullyDefinedState {
     Visiting,
@@ -883,23 +1024,25 @@ enum CompoundType {
     Union,
 }
 
-
 /* The rules for "full definition" of a type are
-     defined(atom)             := true
-     defined(array basetype)   := defined(basetype)
-     defined(struct f1 f2...)  := defined(f1) and defined(f2) and ...
-     defined(union c1 c2 ...)  := defined(c1) or defined(c2) or ...
- */
-fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
-                 mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
-                 t: &IPDLType) -> bool {
-
+    defined(atom)             := true
+    defined(array basetype)   := defined(basetype)
+    defined(struct f1 f2...)  := defined(f1) and defined(f2) and ...
+    defined(union c1 c2 ...)  := defined(c1) or defined(c2) or ...
+*/
+fn fully_defined(
+    tuts: &HashMap<TUId, TranslationUnitType>,
+    mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
+    t: &IPDLType,
+) -> bool {
     let key = match t {
         &IPDLType::StructType(ref tr) => (CompoundType::Struct, tr.clone()),
         &IPDLType::UnionType(ref tr) => (CompoundType::Union, tr.clone()),
         &IPDLType::ArrayType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
         &IPDLType::MaybeType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
-        &IPDLType::UniquePtrType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
+        &IPDLType::UniquePtrType(ref t_inner) => {
+            return fully_defined(&tuts, &mut defined, &t_inner)
+        }
 
         &IPDLType::ImportedCxxType(_, _, _) => return true,
         &IPDLType::MessageType(_) => return true,
@@ -920,7 +1063,7 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
         return match state {
             &FullyDefinedState::Visiting => false,
             &FullyDefinedState::Defined(is_defined) => is_defined,
-        }
+        };
     }
 
     defined.insert(key.clone(), FullyDefinedState::Visiting);
@@ -932,19 +1075,19 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
             for f in &key.1.lookup_struct(&tuts).fields {
                 if !fully_defined(&tuts, &mut defined, f) {
                     is_defined = false;
-                    break
+                    break;
                 }
             }
-        },
+        }
         CompoundType::Union => {
             is_defined = false;
             for f in &key.1.lookup_union(&tuts).components {
                 if fully_defined(&tuts, &mut defined, f) {
                     is_defined = true;
-                    break
+                    break;
                 }
             }
-        },
+        }
     }
 
     // XXX Don't need to insert here. get_mut should work.
@@ -953,22 +1096,23 @@ fn fully_defined(tuts: &HashMap<TUId, TranslationUnitType>,
     return is_defined;
 }
 
-
 enum ManagerCycleState {
     Visiting,
     Acyclic,
 }
 
-
-fn get_protocol_type<'a>(tuts: &'a HashMap<TUId, TranslationUnitType>,
-                         tuid: &TUId) -> &'a ProtocolTypeDef
-{
+fn get_protocol_type<'a>(
+    tuts: &'a HashMap<TUId, TranslationUnitType>,
+    tuid: &TUId,
+) -> &'a ProtocolTypeDef {
     tuts.get(tuid).unwrap().protocol.as_ref().unwrap()
 }
 
-fn manager_cycle_error(tuts: &HashMap<TUId, TranslationUnitType>,
-                       v: &Vec<TUId>,
-                       tuid: &TUId) -> Errors {
+fn manager_cycle_error(
+    tuts: &HashMap<TUId, TranslationUnitType>,
+    v: &Vec<TUId>,
+    tuid: &TUId,
+) -> Errors {
     let mut errors = Errors::none();
     let mut found = false;
     for p in v {
@@ -976,27 +1120,30 @@ fn manager_cycle_error(tuts: &HashMap<TUId, TranslationUnitType>,
             if p != tuid {
                 continue;
             }
-            errors.append_one(get_protocol_type(&tuts, &tuid).qname.loc(),
-                              "cycle detected in manager/manages hierarchy:");
+            errors.append_one(
+                get_protocol_type(&tuts, &tuid).qname.loc(),
+                "cycle detected in manager/manages hierarchy:",
+            );
             found = true;
         }
         let pt = get_protocol_type(&tuts, &p);
-        errors.append_one(pt.qname.loc(),
-                          &format!("\t{}", pt.qname));
+        errors.append_one(pt.qname.loc(), &format!("\t{}", pt.qname));
     }
     assert!(found);
     errors
 }
 
-fn protocol_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>,
-                             mut visited: &mut HashMap<TUId, ManagerCycleState>,
-                             mut stack: &mut Vec<TUId>,
-                             tuid: &TUId) -> Errors {
+fn protocol_managers_acyclic(
+    tuts: &HashMap<TUId, TranslationUnitType>,
+    mut visited: &mut HashMap<TUId, ManagerCycleState>,
+    mut stack: &mut Vec<TUId>,
+    tuid: &TUId,
+) -> Errors {
     if let Some(state) = visited.get(tuid) {
         return match state {
             &ManagerCycleState::Visiting => manager_cycle_error(&tuts, &stack, tuid),
             &ManagerCycleState::Acyclic => Errors::none(),
-        }
+        };
     }
 
     let mut errors = Errors::none();
@@ -1012,7 +1159,12 @@ fn protocol_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>,
             continue;
         }
 
-        errors.append(protocol_managers_acyclic(&tuts, &mut visited, &mut stack, &managee));
+        errors.append(protocol_managers_acyclic(
+            &tuts,
+            &mut visited,
+            &mut stack,
+            &managee,
+        ));
     }
 
     stack.pop();
@@ -1032,27 +1184,40 @@ fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Erro
             continue;
         }
 
-        errors.append(protocol_managers_acyclic(&tuts, &mut visited, &mut stack, &tuid));
+        errors.append(protocol_managers_acyclic(
+            &tuts,
+            &mut visited,
+            &mut stack,
+            &tuid,
+        ));
 
         let pt = get_protocol_type(&tuts, &tuid);
         if pt.managers.len() == 1 && &pt.managers[0] == tuid {
-            errors.append_one(pt.qname.loc(),
-                              &format!("top-level protocol `{}' cannot manage itself",
-                                      pt.qname.short_name()));
+            errors.append_one(
+                pt.qname.loc(),
+                &format!(
+                    "top-level protocol `{}' cannot manage itself",
+                    pt.qname.short_name()
+                ),
+            );
         }
     }
     errors
 }
 
-fn check_types_message(ptype: &ProtocolTypeDef,
-                       mtype: &MessageTypeDef) -> Errors {
+fn check_types_message(ptype: &ProtocolTypeDef, mtype: &MessageTypeDef) -> Errors {
     let mut errors = Errors::none();
     let mname = &mtype.name.id;
 
     if mtype.nested.inside_sync() && !mtype.is_sync() {
-        errors.append_one(&mtype.name.loc,
-                          &format!("inside_sync nested messages must be sync (here, message `{}' in protocol `{}')",
-                                   mname, ptype.qname.short_name()));
+        errors.append_one(
+            &mtype.name.loc,
+            &format!(
+                "inside_sync nested messages must be sync (here, message `{}' in protocol `{}')",
+                mname,
+                ptype.qname.short_name()
+            ),
+        );
     }
 
     let is_to_child = mtype.direction.is_to_child() || mtype.direction.is_both();
@@ -1067,9 +1232,14 @@ fn check_types_message(ptype: &ProtocolTypeDef,
     // parent. Normal and inside_cpow nested messages that are sync can only come from
     // the child.
     if mtype.is_sync() && mtype.nested.is_none() && is_to_child {
-        errors.append_one(&mtype.name.loc,
-                          &format!("sync parent-to-child messages are verboten (here, message `{}' in protocol `{}')",
-                                   mname, ptype.qname.short_name()));
+        errors.append_one(
+            &mtype.name.loc,
+            &format!(
+                "sync parent-to-child messages are verboten (here, message `{}' in protocol `{}')",
+                mname,
+                ptype.qname.short_name()
+            ),
+        );
     }
 
     if !mtype.converts_to(&ptype) {
@@ -1079,22 +1249,36 @@ fn check_types_message(ptype: &ProtocolTypeDef,
     }
 
     if (mtype.is_ctor() || mtype.is_dtor()) && mtype.is_async() && mtype.returns.len() > 0 {
-        errors.append_one(&mtype.name.loc,
-                          &format!("asynchronous ctor/dtor message `{}' in protocol `{}' declares return values",
-                                   mname, ptype.qname.short_name()));
+        errors.append_one(
+            &mtype.name.loc,
+            &format!(
+                "asynchronous ctor/dtor message `{}' in protocol `{}' declares return values",
+                mname,
+                ptype.qname.short_name()
+            ),
+        );
     }
 
-    if mtype.compress != Compress::None && (!mtype.is_async() || mtype.is_ctor() || mtype.is_dtor()) {
+    if mtype.compress != Compress::None && (!mtype.is_async() || mtype.is_ctor() || mtype.is_dtor())
+    {
         let pname = ptype.qname.short_name();
         let message;
 
         if mtype.is_ctor() || mtype.is_dtor() {
-            let message_type = if mtype.is_ctor() { "constructor" } else { "destructor" };
-            message = format!("{} messages can't use compression (here, in protocol `{}')",
-                              message_type, pname);
+            let message_type = if mtype.is_ctor() {
+                "constructor"
+            } else {
+                "destructor"
+            };
+            message = format!(
+                "{} messages can't use compression (here, in protocol `{}')",
+                message_type, pname
+            );
         } else {
-            message = format!("message `{}' in protocol `{}' requests compression but is not async",
-                              mname, pname);
+            message = format!(
+                "message `{}' in protocol `{}' requests compression but is not async",
+                mname, pname
+            );
         }
 
         errors.append_one(&mtype.name.loc, &message);
@@ -1102,18 +1286,24 @@ fn check_types_message(ptype: &ProtocolTypeDef,
 
     if mtype.is_ctor() && !ptype.manages.contains(mtype.constructed_type()) {
         let ctor_protocol_len = mname.len() - CONSTRUCTOR_SUFFIX.len();
-        errors.append_one(&mtype.name.loc,
-                          &format!("ctor for protocol `{}', which is not managed by protocol `{}'",
-                                   &mname[0..ctor_protocol_len],
-                                   ptype.qname.short_name()));
+        errors.append_one(
+            &mtype.name.loc,
+            &format!(
+                "ctor for protocol `{}', which is not managed by protocol `{}'",
+                &mname[0..ctor_protocol_len],
+                ptype.qname.short_name()
+            ),
+        );
     }
 
     errors
 }
 
-fn check_types_protocol(tuts: &HashMap<TUId, TranslationUnitType>,
-                        tuid: &TUId,
-                        ptype: &ProtocolTypeDef) -> Errors {
+fn check_types_protocol(
+    tuts: &HashMap<TUId, TranslationUnitType>,
+    tuid: &TUId,
+    ptype: &ProtocolTypeDef,
+) -> Errors {
     let mut errors = protocols_managers_acyclic(&tuts);
 
     for manager in &ptype.managers {
@@ -1148,31 +1338,46 @@ fn check_types_protocol(tuts: &HashMap<TUId, TranslationUnitType>,
     errors
 }
 
-
-fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
-                  tuts: &HashMap<TUId, TranslationUnitType>,
-                  mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
-                  tuid: &TUId,
-                  tut: &TranslationUnitType) -> Result<(), String> {
+fn check_types_tu(
+    tus: &HashMap<TUId, TranslationUnit>,
+    tuts: &HashMap<TUId, TranslationUnitType>,
+    mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
+    tuid: &TUId,
+    tut: &TranslationUnitType,
+) -> Result<(), String> {
     let mut errors = Errors::none();
 
     let tu = tus.get(tuid).unwrap();
 
     for i in 0..tut.structs.len() {
-        if !fully_defined(&tuts, &mut defined,
-                          &IPDLType::StructType(TypeRef::new(&tuid, i))) {
-            errors.append_one(&tu.structs[i].0.name.loc,
-                              &format!("struct `{}' is only partially defined",
-                                       &tu.structs[i].0.name.id));
+        if !fully_defined(
+            &tuts,
+            &mut defined,
+            &IPDLType::StructType(TypeRef::new(&tuid, i)),
+        ) {
+            errors.append_one(
+                &tu.structs[i].0.name.loc,
+                &format!(
+                    "struct `{}' is only partially defined",
+                    &tu.structs[i].0.name.id
+                ),
+            );
         }
     }
 
     for i in 0..tut.unions.len() {
-        if !fully_defined(&tuts, &mut defined,
-                          &IPDLType::UnionType(TypeRef::new(&tuid, i))) {
-            errors.append_one(&tu.unions[i].0.name.loc,
-                              &format!("union `{}' is only partially defined",
-                                       &tu.unions[i].0.name.id));
+        if !fully_defined(
+            &tuts,
+            &mut defined,
+            &IPDLType::UnionType(TypeRef::new(&tuid, i)),
+        ) {
+            errors.append_one(
+                &tu.unions[i].0.name.loc,
+                &format!(
+                    "union `{}' is only partially defined",
+                    &tu.unions[i].0.name.id
+                ),
+            );
         }
     }
 
@@ -1189,16 +1394,12 @@ fn check_types_tu(tus: &HashMap<TUId, TranslationUnit>,
     // which checks any included protocols. I don't know why that
     // would be useful.
 
-
     errors.to_result()
 }
 
-
 // Basic checking that doesn't relate to types specifically.
 pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
-
     if let &Some((ref ns, _)) = &tu.protocol {
-
         // For a protocol file, the filename should match the
         // protocol. (In the Python IPDL compiler, translation units have
         // a separate "name" field that is checked here, but for protocol
@@ -1212,13 +1413,12 @@ pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
         let expected_file_name = ns.name.id.clone() + ".ipdl";
         if base_file_name != expected_file_name {
             return Err(format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
-                               tu.namespace.name.id, expected_file_name, base_file_name))
+                               tu.namespace.name.id, expected_file_name, base_file_name));
         }
     }
 
     Ok(())
 }
-
 
 pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
     let mut tuts = HashMap::new();

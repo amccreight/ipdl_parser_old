@@ -1,7 +1,7 @@
-mod errors;
 pub mod ast;
+pub mod compiler;
+mod errors;
 mod ipdl;
 pub mod parser;
-mod uncommenter;
 mod type_check;
-pub mod compiler;
+mod uncommenter;

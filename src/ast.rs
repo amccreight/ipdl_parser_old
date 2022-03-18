@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::path::{Path, PathBuf};
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct QualifiedId {
@@ -13,7 +13,10 @@ pub struct QualifiedId {
 
 impl QualifiedId {
     pub fn new(base: Identifier) -> QualifiedId {
-        QualifiedId { base_id: base, quals: Vec::new() }
+        QualifiedId {
+            base_id: base,
+            quals: Vec::new(),
+        }
     }
 
     pub fn qualify(mut self, id: Identifier) -> QualifiedId {
@@ -22,11 +25,19 @@ impl QualifiedId {
         self
     }
 
-    pub fn new_from_iter<'a, I> (mut ids: I) -> QualifiedId
-        where I: Iterator<Item=&'a str>
+    pub fn new_from_iter<'a, I>(mut ids: I) -> QualifiedId
+    where
+        I: Iterator<Item = &'a str>,
     {
-        let loc = Location { file_name: PathBuf::from("<builtin>"), lineno: 0, colno: 0 };
-        let mut qual_id = QualifiedId::new(Identifier::new(String::from(ids.next().unwrap()), loc.clone()));
+        let loc = Location {
+            file_name: PathBuf::from("<builtin>"),
+            lineno: 0,
+            colno: 0,
+        };
+        let mut qual_id = QualifiedId::new(Identifier::new(
+            String::from(ids.next().unwrap()),
+            loc.clone(),
+        ));
         for i in ids {
             qual_id = qual_id.qualify(Identifier::new(String::from(i), loc.clone()));
         }
@@ -70,7 +81,13 @@ pub struct TypeSpec {
 
 impl TypeSpec {
     pub fn new(spec: QualifiedId) -> TypeSpec {
-        TypeSpec { spec: spec, array: false, maybe: false, nullable: false, uniqueptr: false }
+        TypeSpec {
+            spec: spec,
+            array: false,
+            maybe: false,
+            nullable: false,
+            uniqueptr: false,
+        }
     }
 
     // XXX Get rid of these setters if the fields are just public anyways?
@@ -108,7 +125,10 @@ pub struct Param {
 
 impl Param {
     pub fn new(type_spec: TypeSpec, name: Identifier) -> Param {
-        Param { name: name, type_spec: type_spec }
+        Param {
+            name: name,
+            type_spec: type_spec,
+        }
     }
 }
 
@@ -120,7 +140,10 @@ pub struct StructField {
 
 impl StructField {
     pub fn new(ty: TypeSpec, name: Identifier) -> StructField {
-        StructField { type_spec: ty, name: name }
+        StructField {
+            type_spec: ty,
+            name: name,
+        }
     }
 }
 
@@ -132,7 +155,10 @@ pub struct Namespace {
 
 impl Namespace {
     pub fn new(name: Identifier) -> Namespace {
-        Namespace { name: name, namespaces: Vec::new() }
+        Namespace {
+            name: name,
+            namespaces: Vec::new(),
+        }
     }
 
     pub fn add_outer_namespace(&mut self, namespace: &str) {
@@ -140,7 +166,10 @@ impl Namespace {
     }
 
     pub fn qname(&self) -> QualifiedId {
-        QualifiedId { base_id: self.name.clone(), quals: self.namespaces.clone() }
+        QualifiedId {
+            base_id: self.name.clone(),
+            quals: self.namespaces.clone(),
+        }
     }
 }
 
@@ -236,7 +265,13 @@ pub struct Location {
 
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {}:{}", self.file_name.display(), self.lineno, self.colno)
+        write!(
+            f,
+            "{} {}:{}",
+            self.file_name.display(),
+            self.lineno,
+            self.colno
+        )
     }
 }
 
@@ -248,10 +283,7 @@ pub struct Identifier {
 
 impl Identifier {
     pub fn new(name: String, loc: Location) -> Identifier {
-        Identifier {
-            id: name,
-            loc: loc,
-        }
+        Identifier { id: name, loc: loc }
     }
 }
 
@@ -317,17 +349,27 @@ pub struct Protocol {
 }
 
 impl Protocol {
-    pub fn new(send_semantics: SendSemantics, nested: Nesting,
-               managers: Vec<Identifier>, manages: Vec<Identifier>, decls: Vec<MessageDecl>) -> Protocol {
-        Protocol { send_semantics: send_semantics, nested: nested,
-                   managers: managers, manages: manages, messages: decls }
+    pub fn new(
+        send_semantics: SendSemantics,
+        nested: Nesting,
+        managers: Vec<Identifier>,
+        manages: Vec<Identifier>,
+        decls: Vec<MessageDecl>,
+    ) -> Protocol {
+        Protocol {
+            send_semantics: send_semantics,
+            nested: nested,
+            managers: managers,
+            manages: manages,
+            messages: decls,
+        }
     }
 }
 
 #[derive(Debug)]
 pub enum CxxTypeKind {
-  Struct,
-  Class,
+    Struct,
+    Class,
 }
 
 #[derive(Debug)]

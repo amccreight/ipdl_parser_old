@@ -6,7 +6,7 @@ fn error_msg(loc: &Location, err: &str) -> String {
 
 #[must_use]
 pub struct Errors {
-    errors: Vec<String>
+    errors: Vec<String>,
 }
 
 impl Errors {
@@ -15,7 +15,9 @@ impl Errors {
     }
 
     pub fn one(loc: &Location, err: &str) -> Errors {
-        Errors { errors: vec![error_msg(&loc, &err)] }
+        Errors {
+            errors: vec![error_msg(&loc, &err)],
+        }
     }
 
     pub fn append(&mut self, mut other: Errors) {

@@ -3,21 +3,23 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 extern crate lalrpop_util as __lalrpop_util;
-use self::__lalrpop_util::ParseError as ParseError;
+use self::__lalrpop_util::ParseError;
 
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::cell::{Cell, RefCell};
-use std::io::prelude::*;
 use std::fs::File;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use ast::{Direction, FileType, Protocol, StructField, TUId, TranslationUnit, TypeSpec, UsingStmt, Location};
-use ipdl::TranslationUnitParser;
+use ast::{
+    Direction, FileType, Location, Protocol, StructField, TUId, TranslationUnit, TypeSpec,
+    UsingStmt,
+};
 use errors::Errors;
+use ipdl::TranslationUnitParser;
 
 use uncommenter::uncomment;
-
 
 pub struct TUIdFileMap {
     next_id: TUId,
@@ -49,7 +51,6 @@ impl TUIdFileMap {
     fn id_file_name(&self, tuid: &TUId) -> &PathBuf {
         self.id_files.get(tuid).unwrap()
     }
-
 }
 
 pub struct IncludeResolver {
@@ -88,7 +89,6 @@ impl IncludeResolver {
 
         None
     }
-
 }
 
 pub struct ParserState<'a> {
@@ -101,8 +101,12 @@ pub struct ParserState<'a> {
 }
 
 impl<'a> ParserState<'a> {
-    pub fn new(include_resolver: &'a RefCell<IncludeResolver>, file_type: FileType,
-               file_name: &Path, newline_offsets: Vec<usize>) -> ParserState<'a> {
+    pub fn new(
+        include_resolver: &'a RefCell<IncludeResolver>,
+        file_type: FileType,
+        file_name: &Path,
+        newline_offsets: Vec<usize>,
+    ) -> ParserState<'a> {
         ParserState {
             include_resolver: include_resolver,
             file_type: file_type,
@@ -115,24 +119,37 @@ impl<'a> ParserState<'a> {
 
     pub fn resolve_include_path(&self, loc: &Location, file: &str) -> TUId {
         if let Some(tuid) = self.include_resolver.borrow_mut().resolve_include(&file) {
-            return tuid
+            return tuid;
         }
 
-        self.add_error(&loc,
-                       &format!("Error: can't locate include file `{}'", &file));
+        self.add_error(
+            &loc,
+            &format!("Error: can't locate include file `{}'", &file),
+        );
         -1 // Dummy id
     }
 
     pub fn resolve_location(&self, byte_offset: usize) -> Location {
         match self.newline_offsets.binary_search(&byte_offset) {
-            Ok(r) => panic!("Token should not start or end on a newline: {}, {}", byte_offset, r),
+            Ok(r) => panic!(
+                "Token should not start or end on a newline: {}, {}",
+                byte_offset, r
+            ),
             Err(index) => {
                 let file_name = self.file_name.clone();
                 if index == 0 {
-                    Location { file_name: file_name, lineno: 1, colno: byte_offset }
+                    Location {
+                        file_name: file_name,
+                        lineno: 1,
+                        colno: byte_offset,
+                    }
                 } else {
                     let line_start_offset = self.newline_offsets[index - 1] + 1;
-                    Location { file_name: file_name, lineno: index + 1, colno: byte_offset - line_start_offset }
+                    Location {
+                        file_name: file_name,
+                        lineno: index + 1,
+                        colno: byte_offset - line_start_offset,
+                    }
                 }
             }
         }
@@ -155,7 +172,10 @@ pub enum TopLevelDecl {
     Protocol(Protocol),
 }
 
-pub fn parse_file(include_resolver: &RefCell<IncludeResolver>, file_name: &PathBuf) -> Result<TranslationUnit, String> {
+pub fn parse_file(
+    include_resolver: &RefCell<IncludeResolver>,
+    file_name: &PathBuf,
+) -> Result<TranslationUnit, String> {
     // The file type and name are later enforced by the type checker.
     // This is just a hint to the parser.
     let file_type = FileType::from_file_path(&file_name).unwrap();
@@ -177,39 +197,41 @@ pub fn parse_file(include_resolver: &RefCell<IncludeResolver>, file_name: &PathB
     }
 
     let parser_state = ParserState::new(&include_resolver, file_type, file_name, newline_offsets);
-    TranslationUnitParser::new().parse(&parser_state, &text)
+    TranslationUnitParser::new()
+        .parse(&parser_state, &text)
         .map_err(|e| {
             match e {
                 ParseError::InvalidToken { location } => {
                     let loc = parser_state.resolve_location(location);
                     format!(":{} Unexpected token.", loc)
-                },
+                }
                 ParseError::UnrecognizedToken { token, expected: _ } => {
                     let (start, t, _) = token;
                     let loc = parser_state.resolve_location(start);
-                    format!(":{} Error: Unrecognized token `{}'.",
-                            loc, t.1)
+                    format!(":{} Error: Unrecognized token `{}'.", loc, t.1)
                     // XXX Can anything useful be reported about |expected|?
-                },
-                ParseError::UnrecognizedEOF { location: _, expected: _ } => {
+                }
+                ParseError::UnrecognizedEOF {
+                    location: _,
+                    expected: _,
+                } => {
                     format!("Error: Unexpected EOF.")
-                },
-                ParseError::ExtraToken{ token } => {
+                }
+                ParseError::ExtraToken { token } => {
                     let (start, t, _) = token;
                     let loc = parser_state.resolve_location(start);
-                    format!(":{} Error: Extra token `{}'.",
-                            loc, t.1)
-                },
-                ParseError::User{ error: _ } => {
+                    format!(":{} Error: Extra token `{}'.", loc, t.1)
+                }
+                ParseError::User { error: _ } => {
                     panic!("Unexpected user error.");
-                },
-            }})
+                }
+            }
+        })
         .and_then(|tu| {
             let ref errors = *&parser_state.errors.borrow();
             errors.to_result().map(|_| tu)
         })
 }
-
 
 fn print_include_context(include_context: &Vec<PathBuf>) {
     for pb in include_context {
@@ -217,8 +239,11 @@ fn print_include_context(include_context: &Vec<PathBuf>) {
     }
 }
 
-pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<HashMap<TUId, TranslationUnit>> {
-    let mut work_list : Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
+pub fn parse(
+    include_dirs: &Vec<PathBuf>,
+    file_names: Vec<PathBuf>,
+) -> Option<HashMap<TUId, TranslationUnit>> {
+    let mut work_list: Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
     let mut parsed = HashMap::new();
     let mut visited = HashSet::new();
 
@@ -227,9 +252,12 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
         let fc = match f.canonicalize() {
             Ok(fc) => fc,
             Err(_) => {
-                println!("Error: can't locate file specified on the command line `{}'", f.display());
-                return None
-            },
+                println!(
+                    "Error: can't locate file specified on the command line `{}'",
+                    f.display()
+                );
+                return None;
+            }
         };
 
         let fid = include_resolver.id_file_map.resolve_file_name(&fc);
@@ -249,7 +277,7 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 Err(message) => {
                     print_include_context(&include_context);
                     println!("{} {}", curr_file.display(), message);
-                    continue
+                    continue;
                 }
             };
 
@@ -260,10 +288,20 @@ pub fn parse(include_dirs: &Vec<PathBuf>, file_names: Vec<PathBuf>) -> Option<Ha
                 let mut new_context = include_context.clone();
                 new_context.push(curr_file.clone());
                 visited.insert(i.clone());
-                new_work_list.push((include_resolver_cell.borrow().id_file_map.id_file_name(i).clone(), new_context));
+                new_work_list.push((
+                    include_resolver_cell
+                        .borrow()
+                        .id_file_map
+                        .id_file_name(i)
+                        .clone(),
+                    new_context,
+                ));
             }
 
-            let curr_id = include_resolver_cell.borrow_mut().id_file_map.resolve_file_name(&curr_file);
+            let curr_id = include_resolver_cell
+                .borrow_mut()
+                .id_file_map
+                .resolve_file_name(&curr_file);
             parsed.insert(curr_id, tu);
         }
 

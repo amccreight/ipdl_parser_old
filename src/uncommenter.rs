@@ -15,35 +15,34 @@ pub fn uncomment(text: &str) -> String {
 
     for c in text.chars() {
         match (state, c) {
-            (State::Default, '/') =>
-                state = State::StartComment,
+            (State::Default, '/') => state = State::StartComment,
             (State::Default, _) => {
                 s.push(c);
                 state = State::Default;
-            },
+            }
             (State::StartComment, '/') => {
                 s.push(' ');
                 s.push(' ');
                 state = State::InLineComment;
-            },
+            }
             (State::StartComment, '*') => {
                 s.push(' ');
                 s.push(' ');
                 state = State::InMultilineComment;
-            },
+            }
             (State::StartComment, _) => {
                 s.push('/');
                 s.push(c);
                 state = State::Default;
-            },
+            }
             (State::InLineComment, '\n') => {
                 s.push('\n');
                 state = State::Default;
-            },
+            }
             (State::InLineComment, _) => {
                 s.push(' ');
                 state = State::InLineComment;
-            },
+            }
             (State::InMultilineComment, _) => {
                 s.push(if c == '\n' { '\n' } else { ' ' });
                 if c == '*' {
@@ -51,7 +50,7 @@ pub fn uncomment(text: &str) -> String {
                 } else {
                     state = State::InMultilineComment;
                 }
-            },
+            }
             (State::EndingMultilineComment, _) => {
                 s.push(if c == '\n' { '\n' } else { ' ' });
                 if c == '/' {
@@ -61,9 +60,9 @@ pub fn uncomment(text: &str) -> String {
                 } else {
                     state = State::InMultilineComment;
                 }
-            },
+            }
         }
-    };
+    }
 
     s
 }
@@ -89,6 +88,5 @@ fn basic_tests() {
     // to correctly parse the multiline comment version of the MPL2.
     assert_eq!(uncomment("/**x/y*/0"), "        0");
 
-    assert_eq!(uncomment("/* ... **/123"),
-                         "          123");
+    assert_eq!(uncomment("/* ... **/123"), "          123");
 }
