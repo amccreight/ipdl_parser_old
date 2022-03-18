@@ -12,7 +12,8 @@ user at the moment is [Searchfox](https://searchfox.org).
 
 * Make sure the existing tests all pass with Firefox's IPDL parser. To
 do this from your mozilla-central checkout, go to
-$OBJDIR/ipc/ipdl/test and run make check.
+$OBJDIR/ipc/ipdl/test and run make check. These tests are run as part
+of the build now, so this shouldn't be an issue.
 
 * Delete all files in the tests/ok/ and tests/error directories. Copy
 the .ipdl and .ipdlh files from ipc/ipdl/test/ipdl/ok/ and
@@ -28,7 +29,8 @@ tests will fail.
 
 * Look at the list of revisions for
 [parser.py](https://hg.mozilla.org/mozilla-central/log/tip/ipc/ipdl/ipdl/parser.py)
-and type.py to find the set of revisions since the last time the Rust
+and [type.py](https://hg.mozilla.org/mozilla-central/log/tip/ipc/ipdl/ipdl/type.py)
+to find the set of revisions since the last time the Rust
 IPDL parser was updated.
 
 * For each such revision, make sure there is a front end test. You can
