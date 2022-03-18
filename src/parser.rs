@@ -122,10 +122,7 @@ impl<'a> ParserState<'a> {
             return tuid;
         }
 
-        self.add_error(
-            &loc,
-            &format!("Error: can't locate include file `{}'", &file),
-        );
+        self.add_error(&loc, &format!("can't locate include file `{}'", &file));
         -1 // Dummy id
     }
 
@@ -261,7 +258,7 @@ fn parse_internal(
                     continue;
                 } else {
                     return Err(format!(
-                        "Error: can't locate file specified on the command line `{}'",
+                        "error: can't locate file specified on the command line `{}'",
                         f.display()
                     ));
                 }
