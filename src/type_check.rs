@@ -96,6 +96,13 @@ enum IPDLType {
     UniquePtrType(Box<IPDLType>),
 }
 
+fn get_protocol_type<'a>(
+    tuts: &'a HashMap<TUId, TranslationUnitType>,
+    tuid: &TUId,
+) -> &'a ProtocolTypeDef {
+    tuts.get(tuid).unwrap().protocol.as_ref().unwrap()
+}
+
 impl IPDLType {
     // XXX This has to be the same as the IPDL Python compiler's class names,
     // to perfectly match the error messages, because Type::typename is defined
@@ -119,7 +126,43 @@ impl IPDLType {
         }
     }
 
-    fn canonicalize(&self, type_spec: &TypeSpec) -> (Errors, IPDLType) {
+    fn name(&self, tuts: &HashMap<TUId, TranslationUnitType>) -> String {
+        match self {
+            &IPDLType::ImportedCxxType(ref qid, _, _) => qid.short_name(),
+            &IPDLType::MessageType(_) => "???".to_string(),
+            &IPDLType::ProtocolType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
+            &IPDLType::ActorType(ref p, _) => get_protocol_type(&tuts, &p).qname.to_string(),
+            &IPDLType::StructType(ref tr) => tr.lookup_struct(&tuts).qname.to_string(),
+            &IPDLType::UnionType(ref tr) => tr.lookup_union(&tuts).qname.to_string(),
+            &IPDLType::ArrayType(ref t_inner) => {
+                let mut array_name = t_inner.name(&tuts);
+                array_name.push_str("[]");
+                array_name
+            }
+            &IPDLType::MaybeType(ref t_inner) => {
+                let mut maybe_name = t_inner.name(&tuts);
+                maybe_name.push_str("?");
+                maybe_name
+            }
+            &IPDLType::ShmemType(ref qname) => qname.short_name(),
+            &IPDLType::ByteBufType(ref qname) => qname.short_name(),
+            &IPDLType::FDType(ref qname) => qname.short_name(),
+            &IPDLType::EndpointType(ref qname) => qname.short_name(),
+            &IPDLType::ManagedEndpointType(ref qname) => qname.short_name(),
+            &IPDLType::UniquePtrType(ref t_inner) => {
+                let mut up_name = "UniquePtr<".to_string();
+                up_name.push_str(&t_inner.name(&tuts));
+                up_name.push_str(">");
+                up_name
+            }
+        }
+    }
+
+    fn canonicalize(
+        &self,
+        tuts: &HashMap<TUId, TranslationUnitType>,
+        type_spec: &TypeSpec,
+    ) -> (Errors, IPDLType) {
         let mut errors = Errors::none();
         let mut itype = self.clone();
 
@@ -134,8 +177,8 @@ impl IPDLType {
                     errors.append_one(
                         type_spec.loc(),
                         &format!(
-                            "`nullable' qualifier for {} makes no sense",
-                            itype.type_name()
+                            "`nullable' qualifier for type `{}' makes no sense",
+                            itype.name(&tuts)
                         ),
                     );
                 }
@@ -523,6 +566,7 @@ fn declare_cxx_type(
     sym_tab.declare(Decl::new_from_qid(&cxx_type.spec, ipdl_type))
 }
 
+#[derive(Clone)]
 struct TranslationUnitType {
     pub structs: Vec<StructTypeDef>,
     pub unions: Vec<UnionTypeDef>,
@@ -619,6 +663,7 @@ fn declare_structs_and_unions(
 
 fn gather_decls_struct(
     sym_tab: &mut SymbolTable,
+    tuts: &HashMap<TUId, TranslationUnitType>,
     &(ref ns, ref sd): &(Namespace, Vec<StructField>),
     sdef: &mut StructTypeDef,
 ) -> Errors {
@@ -641,7 +686,10 @@ fn gather_decls_struct(
             );
             continue;
         }
-        let (errors2, f_type) = fty_decl.unwrap().decl_type.canonicalize(&f.type_spec);
+        let (errors2, f_type) = fty_decl
+            .unwrap()
+            .decl_type
+            .canonicalize(&tuts, &f.type_spec);
         errors.append(errors2);
 
         errors.append(sym_tab.declare(Decl::new(&f.name.loc, f_type.clone(), f.name.id.clone())));
@@ -655,6 +703,7 @@ fn gather_decls_struct(
 
 fn gather_decls_union(
     sym_tab: &mut SymbolTable,
+    tuts: &HashMap<TUId, TranslationUnitType>,
     &(ref ns, ref ud): &(Namespace, Vec<TypeSpec>),
     udef: &mut UnionTypeDef,
 ) -> Errors {
@@ -674,7 +723,7 @@ fn gather_decls_union(
             );
             continue;
         }
-        let (errors2, c_ty) = c_decl.unwrap().decl_type.canonicalize(&c);
+        let (errors2, c_ty) = c_decl.unwrap().decl_type.canonicalize(&tuts, &c);
         errors.append(errors2);
         udef.append_component(c_ty);
     }
@@ -751,6 +800,7 @@ fn gather_decls_manages(
 
 fn gather_decls_message(
     sym_tab: &mut SymbolTable,
+    tuts: &HashMap<TUId, TranslationUnitType>,
     tuid: &TUId,
     protocol_type: &mut ProtocolTypeDef,
     md: &MessageDecl,
@@ -793,7 +843,7 @@ fn gather_decls_message(
             let pt_name = param.type_spec.spec.to_string();
             match sym_tab.lookup(&pt_name) {
                 Some(p_type) => {
-                    let (errors2, t) = p_type.decl_type.canonicalize(&param.type_spec);
+                    let (errors2, t) = p_type.decl_type.canonicalize(&tuts, &param.type_spec);
                     errors.append(errors2);
                     let decl = Decl::new(param.type_spec.loc(), t.clone(), param.name.id.clone());
                     errors.append(sym_tab.declare(decl));
@@ -841,6 +891,7 @@ fn gather_decls_message(
 
 fn gather_decls_protocol(
     mut sym_tab: &mut SymbolTable,
+    tuts: &HashMap<TUId, TranslationUnitType>,
     tuid: &TUId,
     p: &(Namespace, Protocol),
     mut p_type: &mut ProtocolTypeDef,
@@ -891,7 +942,13 @@ fn gather_decls_protocol(
     }
 
     for md in &p.1.messages {
-        errors.append(gather_decls_message(&mut sym_tab, &tuid, &mut p_type, &md));
+        errors.append(gather_decls_message(
+            &mut sym_tab,
+            &tuts,
+            &tuid,
+            &mut p_type,
+            &md,
+        ));
     }
 
     let delete_type = sym_tab.lookup(DELETE_MESSAGE_NAME);
@@ -934,7 +991,6 @@ fn gather_decls_tu(
 ) -> Result<(), String> {
     let mut errors = Errors::none();
     let mut sym_tab = SymbolTable::new();
-    let tut = &mut tuts.get_mut(tuid).unwrap();
 
     if let &Some(ref p) = &tu.protocol {
         errors.append(declare_protocol(&mut sym_tab, &tuid, &p.0));
@@ -971,6 +1027,12 @@ fn gather_decls_tu(
     // Declare imported C++ types.
     errors.append(declare_usings(&mut sym_tab, &tu));
 
+    // Get a copy of the translation unit type so that we can still
+    // use |tuts| to look up things for error messages. An alternative
+    // would be to extract some kind of mapping from tuids to the name
+    // of protocols, structs and unions and use that.
+    let mut tut = (*tuts.get(tuid).unwrap()).clone();
+
     // Create stubs for top level struct and union decls.
     for s in &tu.structs {
         tut.structs.push(StructTypeDef::new(&s.0));
@@ -989,6 +1051,7 @@ fn gather_decls_tu(
     for su in &tu.structs {
         errors.append(gather_decls_struct(
             &mut sym_tab,
+            &tuts,
             &su,
             &mut tut.structs[index],
         ));
@@ -996,7 +1059,12 @@ fn gather_decls_tu(
     }
     index = 0;
     for u in &tu.unions {
-        errors.append(gather_decls_union(&mut sym_tab, &u, &mut tut.unions[index]));
+        errors.append(gather_decls_union(
+            &mut sym_tab,
+            &tuts,
+            &u,
+            &mut tut.unions[index],
+        ));
         index += 1;
     }
 
@@ -1007,11 +1075,15 @@ fn gather_decls_tu(
     if let &Some(ref p) = &tu.protocol {
         errors.append(gather_decls_protocol(
             &mut sym_tab,
+            &tuts,
             &tuid,
             &p,
             &mut tut.protocol.as_mut().unwrap(),
         ));
     }
+
+    // Now that we've updated |tut|, replace it in |tuts|.
+    tuts.insert(tuid.clone(), tut);
 
     errors.to_result()
 }
@@ -1102,13 +1174,6 @@ fn fully_defined(
 enum ManagerCycleState {
     Visiting,
     Acyclic,
-}
-
-fn get_protocol_type<'a>(
-    tuts: &'a HashMap<TUId, TranslationUnitType>,
-    tuid: &TUId,
-) -> &'a ProtocolTypeDef {
-    tuts.get(tuid).unwrap().protocol.as_ref().unwrap()
 }
 
 fn protocol_managers_cycles(
