@@ -988,7 +988,7 @@ fn gather_decls_tu(
     tuts: &mut HashMap<TUId, TranslationUnitType>,
     tuid: &TUId,
     tu: &TranslationUnit,
-) -> Result<(), String> {
+) -> Errors {
     let mut errors = Errors::none();
     let mut sym_tab = SymbolTable::new();
 
@@ -1085,7 +1085,7 @@ fn gather_decls_tu(
     // Now that we've updated |tut|, replace it in |tuts|.
     tuts.insert(tuid.clone(), tut);
 
-    errors.to_result()
+    errors
 }
 
 enum FullyDefinedState {
@@ -1402,7 +1402,7 @@ fn check_types_tu(
     mut defined: &mut HashMap<(CompoundType, TypeRef), FullyDefinedState>,
     tuid: &TUId,
     tut: &TranslationUnitType,
-) -> Result<(), String> {
+) -> Errors {
     let mut errors = Errors::none();
 
     let tu = tus.get(tuid).unwrap();
@@ -1452,11 +1452,11 @@ fn check_types_tu(
     // which checks any included protocols. I don't know why that
     // would be useful.
 
-    errors.to_result()
+    errors
 }
 
 // Basic checking that doesn't relate to types specifically.
-pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
+pub fn check_translation_unit(tu: &TranslationUnit) -> Errors {
     if let &Some((ref ns, _)) = &tu.protocol {
         // For a protocol file, the filename should match the
         // protocol. (In the Python IPDL compiler, translation units have
@@ -1464,18 +1464,22 @@ pub fn check_translation_unit(tu: &TranslationUnit) -> Result<(), String> {
         // files the name is just the name of the protocol, and for
         // non-protocols the name is derived from the file name, so this
         // checking should be equivalent.)
-        let base_file_name = match tu.file_name.file_name() {
-            Some(fs) => fs.to_str().unwrap(),
-            None => return Err(String::from("File path has no file")),
-        };
+        let base_file_name = tu
+            .file_name
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         let expected_file_name = ns.name.id.clone() + ".ipdl";
         if base_file_name != expected_file_name {
-            return Err(format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
-                               tu.namespace.name.id, expected_file_name, base_file_name));
+            return Errors::one(&tu.namespace.name.loc,
+                               &format!("expected file for translation unit `{}' to be named `{}'; instead it's named `{}'.",
+                                        tu.namespace.name.id, expected_file_name, base_file_name));
         }
     }
 
-    Ok(())
+    Errors::none()
 }
 
 pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
@@ -1485,24 +1489,29 @@ pub fn check(tus: &HashMap<TUId, TranslationUnit>) -> Result<(), String> {
     // TUId.
 
     let tus_vec = tus.iter().collect::<Vec<_>>();
+    let mut errors = Errors::none();
 
+    // XXX Should we get all errors first? Probably...
     for &(tuid, tu) in &tus_vec {
-        check_translation_unit(&tu)?;
+        errors.append(check_translation_unit(&tu));
 
         // Create top-level type decl for all protocols.
         let old_entry = tuts.insert(tuid.clone(), TranslationUnitType::new(&tu.protocol));
         assert!(old_entry.is_none());
     }
 
+    // Bail out here if we have errors.
+    //errors.to_result()?;
+
     for &(tuid, tu) in &tus_vec {
-        gather_decls_tu(&tus, &mut tuts, &tuid, &tu)?;
+        errors.append(gather_decls_tu(&tus, &mut tuts, &tuid, &tu));
     }
 
     let tuts_vec = tuts.iter().collect::<Vec<_>>();
     let mut defined = HashMap::new();
     for &(tuid, tut) in &tuts_vec {
-        check_types_tu(&tus, &tuts, &mut defined, &tuid, &tut)?;
+        errors.append(check_types_tu(&tus, &tuts, &mut defined, &tuid, &tut));
     }
 
-    Ok(())
+    errors.to_result()
 }
