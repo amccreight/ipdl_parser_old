@@ -71,6 +71,12 @@ impl TypeRef {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Lifetime {
+    RefCounted,
+    ManualDealloc,
+}
+
 // XXX The Python compiler has "Type" and a subclass "IPDLType". I
 // don't know how useful it is to split them. Plus my notion of type
 // may be different.
@@ -78,8 +84,9 @@ impl TypeRef {
 enum IPDLType {
     ImportedCxxType(
         QualifiedId,
-        bool, /* refcounted */
-        bool, /* moveonly */
+        Lifetime,
+        bool, /* send moveonly */
+        bool, /* data moveonly */
     ),
     MessageType(TypeRef),
     ProtocolType(TUId),
@@ -109,7 +116,7 @@ impl IPDLType {
     // as self.__class__.__name__.
     fn type_name(&self) -> &'static str {
         match self {
-            &IPDLType::ImportedCxxType(_, _, _) => "ImportedCxxType",
+            &IPDLType::ImportedCxxType(_, _, _, _) => "ImportedCxxType",
             &IPDLType::MessageType(_) => "MessageType",
             &IPDLType::ProtocolType(_) => "ProtocolType",
             &IPDLType::ActorType(_, _) => "ActorType",
@@ -128,7 +135,7 @@ impl IPDLType {
 
     fn name(&self, tuts: &HashMap<TUId, TranslationUnitType>) -> String {
         match self {
-            &IPDLType::ImportedCxxType(ref qid, _, _) => qid.short_name(),
+            &IPDLType::ImportedCxxType(ref qid, _, _, _) => qid.short_name(),
             &IPDLType::MessageType(_) => "???".to_string(),
             &IPDLType::ProtocolType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
             &IPDLType::ActorType(ref p, _) => get_protocol_type(&tuts, &p).qname.to_string(),
@@ -202,14 +209,21 @@ impl IPDLType {
 
     fn is_refcounted(&self) -> bool {
         match self {
-            &IPDLType::ImportedCxxType(_, refcounted, _) => refcounted,
+            &IPDLType::ImportedCxxType(_, Lifetime::RefCounted, _, _) => true,
             _ => false,
         }
     }
 
-    fn is_moveonly(&self) -> bool {
+    fn is_send_moveonly(&self) -> bool {
         match self {
-            &IPDLType::ImportedCxxType(_, _, moveonly) => moveonly,
+            &IPDLType::ImportedCxxType(_, _, send_moveonly, _) => send_moveonly,
+            _ => false,
+        }
+    }
+
+    fn is_data_moveonly(&self) -> bool {
+        match self {
+            &IPDLType::ImportedCxxType(_, _, _, data_moveonly) => data_moveonly,
             _ => false,
         }
     }
@@ -219,13 +233,15 @@ impl IPDLType {
 #[derive(Debug, Clone)]
 struct StructTypeDef {
     qname: QualifiedId,
+    comparable: bool,
     fields: Vec<IPDLType>,
 }
 
 impl StructTypeDef {
-    fn new(ns: &Namespace) -> StructTypeDef {
+    fn new(ns: &Namespace, comparable: bool) -> StructTypeDef {
         StructTypeDef {
             qname: ns.qname(),
+            comparable: comparable,
             fields: Vec::new(),
         }
     }
@@ -239,13 +255,15 @@ impl StructTypeDef {
 #[derive(Debug, Clone)]
 struct UnionTypeDef {
     qname: QualifiedId,
+    comparable: bool,
     components: Vec<IPDLType>,
 }
 
 impl UnionTypeDef {
-    fn new(ns: &Namespace) -> UnionTypeDef {
+    fn new(ns: &Namespace, comparable: bool) -> UnionTypeDef {
         UnionTypeDef {
             qname: ns.qname(),
+            comparable: comparable,
             components: Vec::new(),
         }
     }
@@ -303,15 +321,21 @@ impl MessageStrength {
 
         // Protocols that use intr semantics are not allowed to use
         // message nesting.
-        if other.send_semantics.is_intr() {
-            return self.nested_min.is_none() && self.nested_max.is_none();
+        if other.send_semantics.is_intr()
+            && (!self.nested_min.is_none() || !self.nested_max.is_none())
+        {
+            return false;
         }
 
-        match self.send_semantics {
-            SendSemantics::Async => true,
-            SendSemantics::Sync => !other.send_semantics.is_async(),
-            SendSemantics::Intr => false,
+        if self.send_semantics.is_async() {
+            return true;
+        } else if self.send_semantics.is_sync() && !other.send_semantics.is_async() {
+            return true;
+        } else if other.send_semantics.is_intr() {
+            return true;
         }
+
+        return false;
     }
 }
 
@@ -334,7 +358,70 @@ struct MessageTypeDef {
     returns: Vec<ParamTypeDef>,
     mtype: MessageType,
     compress: Compress,
-    verify: bool,
+}
+// XXX Need to add LegacyIntr, Tainted.
+
+fn get_attribute_value<A: Clone>(
+    attributes: &Attributes,
+    key: &str,
+    not_present: A,
+    no_value: A,
+    identifier_map: HashMap<&'static str, A>,
+    string_map: fn(&String) -> A,
+) -> A {
+    attributes
+        .get(key)
+        .map(|(_, v)| match v {
+            AttributeValue::Identifier(i) => {
+                (*identifier_map.get(&i.id as &str).unwrap_or(&not_present)).clone()
+            }
+            AttributeValue::String(s) => string_map(&s),
+            AttributeValue::None => no_value,
+        })
+        .unwrap_or(not_present)
+}
+
+fn get_nested(attributes: &Attributes, key: &str) -> Nesting {
+    get_attribute_value(
+        attributes,
+        key,
+        Nesting::None,
+        Nesting::None,
+        HashMap::from([
+            ("not", Nesting::None),
+            ("inside_sync", Nesting::InsideSync),
+            ("inside_cpow", Nesting::InsideCpow),
+        ]),
+        |_| Nesting::None,
+    )
+}
+
+fn get_prio(attributes: &Attributes) -> Priority {
+    get_attribute_value(
+        attributes,
+        "Priority",
+        Priority::Normal,
+        Priority::Normal,
+        HashMap::from([
+            ("normal", Priority::Normal),
+            ("input", Priority::Input),
+            ("vsync", Priority::Vsync),
+            ("mediumhigh", Priority::Mediumhigh),
+            ("control", Priority::Control),
+        ]),
+        |_| Priority::Normal,
+    )
+}
+
+fn get_compress(attributes: &Attributes) -> Compress {
+    get_attribute_value(
+        attributes,
+        "Compress",
+        Compress::None,
+        Compress::Enabled,
+        HashMap::from([("all", Compress::All)]),
+        |_| Compress::None,
+    )
 }
 
 impl MessageTypeDef {
@@ -343,14 +430,13 @@ impl MessageTypeDef {
         MessageTypeDef {
             name: Identifier::new(String::from(name), md.name.loc.clone()),
             send_semantics: md.send_semantics,
-            nested: md.nested,
-            prio: md.prio,
+            nested: get_nested(&md.attributes, "Nested"),
+            prio: get_prio(&md.attributes),
             direction: md.direction,
             params: Vec::new(),
             returns: Vec::new(),
             mtype: mtype,
-            compress: md.compress,
-            verify: md.verify,
+            compress: get_compress(&md.attributes),
         }
     }
 
@@ -386,10 +472,6 @@ impl MessageTypeDef {
     pub fn is_sync(&self) -> bool {
         self.send_semantics.is_sync()
     }
-
-    pub fn is_intr(&self) -> bool {
-        self.send_semantics.is_intr()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -401,7 +483,9 @@ struct ProtocolTypeDef {
     manages: Vec<TUId>,
     messages: Vec<MessageTypeDef>,
     has_delete: bool,
-    has_reentrant_delete: bool,
+    #[allow(dead_code)]
+    lifetime: Lifetime,
+    needs_other_pid: bool,
 }
 
 impl ProtocolTypeDef {
@@ -409,12 +493,17 @@ impl ProtocolTypeDef {
         ProtocolTypeDef {
             qname: ns.qname(),
             send_semantics: p.send_semantics,
-            nested: p.nested,
+            nested: get_nested(&p.attributes, "NestedUpTo"),
             managers: Vec::new(),
             manages: Vec::new(),
             messages: Vec::new(),
             has_delete: false,
-            has_reentrant_delete: false,
+            lifetime: if p.attributes.contains_key("ManualDealloc") {
+                Lifetime::RefCounted
+            } else {
+                Lifetime::ManualDealloc
+            },
+            needs_other_pid: p.attributes.contains_key("NeedsOtherPid"),
         }
     }
 
@@ -529,8 +618,9 @@ impl SymbolTable {
 fn declare_cxx_type(
     sym_tab: &mut SymbolTable,
     cxx_type: &TypeSpec,
-    refcounted: bool,
-    moveonly: bool,
+    refcounted: Lifetime,
+    send_moveonly: bool,
+    data_moveonly: bool,
 ) -> Errors {
     let ipdl_type = match cxx_type.spec.full_name() {
         Some(ref n) if n == "mozilla::ipc::Shmem" => IPDLType::ShmemType(cxx_type.spec.clone()),
@@ -539,22 +629,30 @@ fn declare_cxx_type(
             IPDLType::FDType(cxx_type.spec.clone())
         }
         _ => {
-            let ipdl_type = IPDLType::ImportedCxxType(cxx_type.spec.clone(), refcounted, moveonly);
+            let ipdl_type = IPDLType::ImportedCxxType(
+                cxx_type.spec.clone(),
+                refcounted,
+                send_moveonly,
+                data_moveonly,
+            );
             let full_name = format!("{}", cxx_type.spec);
             // ??? What to do here for UniquePtr?
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
-                        if refcounted != decl.decl_type.is_refcounted() {
+                        if (refcounted == Lifetime::RefCounted) != decl.decl_type.is_refcounted() {
                             return Errors::one(&cxx_type.loc(),
                                                &format!("inconsistent refcounted status of type `{}`, first declared at {}",
                                                         full_name, decl.loc));
                         }
-                        if moveonly != decl.decl_type.is_moveonly() {
+                        if send_moveonly != decl.decl_type.is_send_moveonly()
+                            || data_moveonly != decl.decl_type.is_data_moveonly()
+                        {
                             return Errors::one(&cxx_type.loc(),
-                                               &format!("inconsistent moveonly status of type `{}`, first declared at {}",
-                                                        full_name, decl.loc));
+                                                   &format!("inconsistent moveonly status of type `{}`, first declared at {}",
+                                                            full_name, decl.loc));
                         }
+
                         // This type has already been added, so don't do anything.
                         return Errors::none();
                     }
@@ -586,8 +684,91 @@ impl TranslationUnitType {
     }
 }
 
-fn declare_protocol(sym_tab: &mut SymbolTable, tuid: &TUId, ns: &Namespace) -> Errors {
+#[derive(Debug, PartialEq)]
+pub enum AttributeSpecValue {
+    Valueless,
+    StringLiteral,
+    Keyword(&'static str),
+}
+
+impl AttributeSpecValue {
+    pub fn check(&self, v: &AttributeValue) -> bool {
+        match (v, &self) {
+            (AttributeValue::Identifier(id1), AttributeSpecValue::Keyword(id2)) => &id1.id == id2,
+            (AttributeValue::String(_), AttributeSpecValue::StringLiteral) => true,
+            (AttributeValue::None, AttributeSpecValue::Valueless) => true,
+            (_, _) => false,
+        }
+    }
+}
+
+type AttributeSpec = HashMap<&'static str, Vec<AttributeSpecValue>>;
+
+fn check_attributes(attributes: &Attributes, specs: &AttributeSpec) -> Errors {
     let mut errors = Errors::none();
+
+    for (name, (loc, value)) in attributes {
+        let spec = match specs.get(name as &str) {
+            Some(s) => s,
+            None => {
+                errors.append_one(&loc, &format!("unknown attribute `{}'", name));
+                continue;
+            }
+        };
+
+        if spec.len() == 0 {
+            if value != &AttributeValue::None {
+                errors.append_one(
+                    &loc,
+                    &format!("unexpected value for valueless attribute `{}'", name),
+                );
+            }
+            continue;
+        }
+
+        if !spec.iter().any(|s| s.check(&value)) {
+            errors.append_one(&loc, "XXX IMPLEMENT A REAL MESSAGE");
+        }
+    }
+
+    errors
+}
+
+fn declare_protocol(
+    sym_tab: &mut SymbolTable,
+    tuid: &TUId,
+    ns: &Namespace,
+    p: &Protocol,
+) -> Errors {
+    let mut errors = Errors::none();
+
+    let protocol_attributes: AttributeSpec = HashMap::from([
+        ("ManualDealloc", Vec::new()),
+        (
+            "NestedUpTo",
+            Vec::from([
+                AttributeSpecValue::Keyword("not"),
+                AttributeSpecValue::Keyword("inside_sync"),
+                AttributeSpecValue::Keyword("inside_cpow"),
+            ]),
+        ),
+        ("NeedsOtherPid", Vec::new()),
+        (
+            "ChildImpl",
+            Vec::from([
+                AttributeSpecValue::Keyword("virtual"),
+                AttributeSpecValue::StringLiteral,
+            ]),
+        ),
+        (
+            "ParentImpl",
+            Vec::from([
+                AttributeSpecValue::Keyword("virtual"),
+                AttributeSpecValue::StringLiteral,
+            ]),
+        ),
+    ]);
+    errors.append(check_attributes(&p.attributes, &protocol_attributes));
 
     let p_type = IPDLType::ProtocolType(tuid.clone());
     errors.append(sym_tab.declare(Decl::new_from_qid(&ns.qname(), p_type)));
@@ -626,12 +807,46 @@ fn declare_protocol(sym_tab: &mut SymbolTable, tuid: &TUId, ns: &Namespace) -> E
 
 fn declare_usings(mut sym_tab: &mut SymbolTable, tu: &TranslationUnit) -> Errors {
     let mut errors = Errors::none();
+
+    let using_attributes: AttributeSpec = HashMap::from([
+        (
+            "MoveOnly",
+            Vec::from([
+                AttributeSpecValue::Valueless,
+                AttributeSpecValue::Keyword("send"),
+                AttributeSpecValue::Keyword("data"),
+            ]),
+        ),
+        ("RefCounted", Vec::new()),
+    ]);
+
     for u in &tu.using {
+        errors.append(check_attributes(&u.attributes, &using_attributes));
+
+        let (send, data) = u
+            .attributes
+            .get("MoveOnly")
+            .map(|(_, v)| match v {
+                AttributeValue::None => (true, true),
+                AttributeValue::Identifier(i) => match i.id.as_str() {
+                    "send" => (true, false),
+                    "data" => (false, true),
+                    _ => (false, false),
+                },
+                _ => (false, false),
+            })
+            .unwrap_or((false, false));
+
         errors.append(declare_cxx_type(
             &mut sym_tab,
             &u.cxx_type,
-            u.refcounted,
-            u.moveonly,
+            if u.attributes.contains_key("RefCounted") {
+                Lifetime::RefCounted
+            } else {
+                Lifetime::ManualDealloc
+            },
+            send,
+            data,
         ));
     }
     errors
@@ -664,7 +879,7 @@ fn declare_structs_and_unions(
 fn gather_decls_struct(
     sym_tab: &mut SymbolTable,
     tuts: &HashMap<TUId, TranslationUnitType>,
-    &(ref ns, ref sd): &(Namespace, Vec<StructField>),
+    &(ref ns, _, ref sd): &(Namespace, Attributes, Vec<StructField>),
     sdef: &mut StructTypeDef,
 ) -> Errors {
     let mut errors = Errors::none();
@@ -704,7 +919,7 @@ fn gather_decls_struct(
 fn gather_decls_union(
     sym_tab: &mut SymbolTable,
     tuts: &HashMap<TUId, TranslationUnitType>,
-    &(ref ns, ref ud): &(Namespace, Vec<TypeSpec>),
+    &(ref ns, _, ref ud): &(Namespace, Attributes, Vec<TypeSpec>),
     udef: &mut UnionTypeDef,
 ) -> Errors {
     let mut errors = Errors::none();
@@ -833,6 +1048,37 @@ fn gather_decls_message(
 
     sym_tab.enter_scope();
 
+    let message_attributes: AttributeSpec = HashMap::from([
+        ("Tainted", Vec::new()),
+        (
+            "Compress",
+            Vec::from([
+                AttributeSpecValue::Valueless,
+                AttributeSpecValue::Keyword("all"),
+            ]),
+        ),
+        (
+            "Priority",
+            Vec::from([
+                AttributeSpecValue::Keyword("normal"),
+                AttributeSpecValue::Keyword("input"),
+                AttributeSpecValue::Keyword("vsync"),
+                AttributeSpecValue::Keyword("mediumhigh"),
+                AttributeSpecValue::Keyword("control"),
+            ]),
+        ),
+        (
+            "Nested",
+            Vec::from([
+                AttributeSpecValue::Keyword("not"),
+                AttributeSpecValue::Keyword("inside_sync"),
+                AttributeSpecValue::Keyword("inside_cpow"),
+            ]),
+        ),
+        ("LegacyIntr", Vec::new()),
+    ]);
+    errors.append(check_attributes(&md.attributes, &message_attributes));
+
     let mut msg_type = MessageTypeDef::new(&md, &message_name, mtype);
 
     {
@@ -840,7 +1086,23 @@ fn gather_decls_message(
         // type. Here I choose to be consistent with how we handle struct
         // fields with invalid types and simply omit the parameter.
         let mut param_to_decl = |param: &Param| {
+            let param_attributes: AttributeSpec = HashMap::from([(
+                "NoTaint",
+                Vec::from([
+                    AttributeSpecValue::Keyword("passback"),
+                    AttributeSpecValue::Keyword("allvalid"),
+                ]),
+            )]);
+            errors.append(check_attributes(&param.attributes, &param_attributes));
+
             let pt_name = param.type_spec.spec.to_string();
+
+            if param.attributes.contains_key("NoTaint") && !md.attributes.contains_key("Tainted") {
+                errors.append_one(param.type_spec.loc(),
+                                  &format!("argument typename `{}' of message `{}' has a NoTaint attribute, but the message lacks the Tainted attribute",
+                                           &pt_name, &message_name));
+            }
+
             match sym_tab.lookup(&pt_name) {
                 Some(p_type) => {
                     let (errors2, t) = p_type.decl_type.canonicalize(&tuts, &param.type_spec);
@@ -964,13 +1226,12 @@ fn gather_decls_protocol(
         );
     }
 
-    p_type.has_reentrant_delete = match delete_type {
-        Some(decl) => match decl.decl_type {
-            IPDLType::MessageType(tr) => p_type.messages[tr.index].is_intr(),
-            _ => panic!("Invalid message type for delete message"),
-        },
-        None => false,
-    };
+    if !p_type.is_top_level() && p_type.needs_other_pid {
+        errors.append_one(
+            &p.0.name.loc,
+            &format!("[NeedsOtherPid] only applies to toplevel protocols"),
+        );
+    }
 
     // FIXME/cjones Declare all the little C++ thingies that will
     // be generated. They're not relevant to IPDL itself, but
@@ -993,14 +1254,14 @@ fn gather_decls_tu(
     let mut sym_tab = SymbolTable::new();
 
     if let &Some(ref p) = &tu.protocol {
-        errors.append(declare_protocol(&mut sym_tab, &tuid, &p.0));
+        errors.append(declare_protocol(&mut sym_tab, &tuid, &p.0, &p.1));
     }
 
     // Add the declarations from all the IPDL files we include.
     for include_tuid in &tu.includes {
         let include_tu = tus.get(include_tuid).unwrap();
         match include_tu.protocol {
-            Some(ref p) => errors.append(declare_protocol(&mut sym_tab, &include_tuid, &p.0)),
+            Some(ref p) => errors.append(declare_protocol(&mut sym_tab, &include_tuid, &p.0, &p.1)),
             None => {
                 // This is a header.  Import its "exported" globals into our scope.
                 errors.append(declare_usings(&mut sym_tab, &include_tu));
@@ -1019,8 +1280,9 @@ fn gather_decls_tu(
         errors.append(declare_cxx_type(
             &mut sym_tab,
             &cxx_type,
-            false, /* refcounted */
-            false, /* moveonly */
+            Lifetime::ManualDealloc, /* refcounted */
+            false,                   /* send moveonly */
+            false,                   /* data moveonly */
         ));
     }
 
@@ -1033,12 +1295,18 @@ fn gather_decls_tu(
     // of protocols, structs and unions and use that.
     let mut tut = (*tuts.get(tuid).unwrap()).clone();
 
+    let struct_union_attributes: AttributeSpec = HashMap::from([("Comparable", Vec::new())]);
+
     // Create stubs for top level struct and union decls.
     for s in &tu.structs {
-        tut.structs.push(StructTypeDef::new(&s.0));
+        errors.append(check_attributes(&s.1, &struct_union_attributes));
+        tut.structs
+            .push(StructTypeDef::new(&s.0, s.1.contains_key("Comparable")));
     }
-    for s in &tu.unions {
-        tut.unions.push(UnionTypeDef::new(&s.0));
+    for u in &tu.unions {
+        errors.append(check_attributes(&u.1, &struct_union_attributes));
+        tut.unions
+            .push(UnionTypeDef::new(&u.0, u.1.contains_key("Comparable")));
     }
 
     // Forward declare all structs and unions in order to support
@@ -1119,7 +1387,7 @@ fn fully_defined(
             return fully_defined(&tuts, &mut defined, &t_inner)
         }
 
-        &IPDLType::ImportedCxxType(_, _, _) => return true,
+        &IPDLType::ImportedCxxType(_, _, _, _) => return true,
         &IPDLType::MessageType(_) => return true,
         &IPDLType::ProtocolType(_) => return true,
         &IPDLType::ActorType(_, _) => return true,
@@ -1235,8 +1503,7 @@ fn protocols_managers_acyclic(tuts: &HashMap<TUId, TranslationUnitType>) -> Erro
         let pt = get_protocol_type(&tuts, &tuid);
 
         // To match the behavior of the Python IPDL compiler in error cases, reset the
-        // visited stack after each protocol. It would be more efficient to maintain it.
-        // See bug 1760229.
+        // visited stack after each protocol.
         let mut visited = HashMap::new();
         let mut stack = Vec::new();
 
@@ -1362,7 +1629,10 @@ fn check_types_protocol(
     tuid: &TUId,
     ptype: &ProtocolTypeDef,
 ) -> Errors {
-    let mut errors = protocols_managers_acyclic(&tuts);
+    let mut errors = Errors::none();
+
+    // XXX Why does this check every translation unit and not just the current one???
+    errors.append(protocols_managers_acyclic(&tuts));
 
     for manager in &ptype.managers {
         let manager_type = get_protocol_type(&tuts, &manager);
@@ -1387,6 +1657,16 @@ fn check_types_protocol(
                               &format!("|manages| declaration in protocol `{}' does not match any |manager| declaration in protocol `{}'",
                                        ptype.qname.short_name(), managee_type.qname.short_name()));
         }
+    }
+
+    if ptype.send_semantics.is_intr() && ptype.nested != Nesting::None {
+        errors.append_one(
+            ptype.qname.loc(),
+            &format!(
+                "intr protocol `{}' cannot specify [NestedUpTo]",
+                ptype.qname.short_name()
+            ),
+        );
     }
 
     for mtype in &ptype.messages {

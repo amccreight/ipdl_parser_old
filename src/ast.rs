@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -70,6 +71,15 @@ impl fmt::Display for QualifiedId {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum AttributeValue {
+    Identifier(Identifier),
+    String(String),
+    None,
+}
+
+pub type Attributes = HashMap<String, (Location, AttributeValue)>;
+
 #[derive(Debug)]
 pub struct TypeSpec {
     pub spec: QualifiedId,
@@ -119,13 +129,15 @@ impl TypeSpec {
 
 #[derive(Debug)]
 pub struct Param {
+    pub attributes: Attributes,
     pub name: Identifier,
     pub type_spec: TypeSpec,
 }
 
 impl Param {
-    pub fn new(type_spec: TypeSpec, name: Identifier) -> Param {
+    pub fn new(attributes: Attributes, type_spec: TypeSpec, name: Identifier) -> Param {
         Param {
+            attributes: attributes,
             name: name,
             type_spec: type_spec,
         }
@@ -209,9 +221,9 @@ impl SendSemantics {
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Nesting {
-    None,
-    InsideSync,
-    InsideCpow,
+    None = 1,
+    InsideSync = 2,
+    InsideCpow = 3,
 }
 
 impl Nesting {
@@ -231,8 +243,10 @@ impl Nesting {
 #[derive(Debug, Clone, Copy)]
 pub enum Priority {
     Normal,
-    High,
     Input,
+    Vsync,
+    Mediumhigh,
+    Control,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -256,7 +270,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct Location {
     pub file_name: PathBuf,
     pub lineno: usize,
@@ -275,7 +289,7 @@ impl fmt::Display for Location {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Identifier {
     pub id: String,
     pub loc: Location,
@@ -296,53 +310,37 @@ impl fmt::Display for Identifier {
 #[derive(Debug)]
 pub struct MessageDecl {
     pub name: Identifier,
+    pub attributes: Attributes,
     pub send_semantics: SendSemantics,
-    pub nested: Nesting,
-    pub prio: Priority,
     pub direction: Direction,
     pub in_params: Vec<Param>,
     pub out_params: Vec<Param>,
-    pub compress: Compress,
-    pub verify: bool,
 }
 
 impl MessageDecl {
-    pub fn new(name: Identifier) -> MessageDecl {
+    pub fn new(
+        name: Identifier,
+        attributes: Attributes,
+        send_semantics: SendSemantics,
+        direction: Direction,
+        in_params: Vec<Param>,
+        out_params: Vec<Param>,
+    ) -> MessageDecl {
         MessageDecl {
             name: name,
-            send_semantics: SendSemantics::Async,
-            nested: Nesting::None,
-            prio: Priority::Normal,
-            direction: Direction::ToParent,
-            in_params: Vec::new(),
-            out_params: Vec::new(),
-            compress: Compress::None,
-            verify: false,
-        }
-    }
-
-    pub fn add_in_params(&mut self, mut in_params: Vec<Param>) {
-        self.in_params.append(&mut in_params);
-    }
-
-    pub fn add_out_params(&mut self, mut out_params: Vec<Param>) {
-        self.out_params.append(&mut out_params);
-    }
-
-    pub fn add_modifiers(&mut self, modifiers: Vec<MessageModifier>) {
-        for modifier in modifiers {
-            match modifier {
-                MessageModifier::Compress(c) => self.compress = c,
-                MessageModifier::Verify => self.verify = true,
-            }
+            attributes: attributes,
+            send_semantics: send_semantics,
+            direction: direction,
+            in_params: in_params,
+            out_params: out_params,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Protocol {
+    pub attributes: Attributes,
     pub send_semantics: SendSemantics,
-    pub nested: Nesting,
     pub managers: Vec<Identifier>,
     pub manages: Vec<Identifier>,
     pub messages: Vec<MessageDecl>,
@@ -350,15 +348,15 @@ pub struct Protocol {
 
 impl Protocol {
     pub fn new(
+        attributes: Attributes,
         send_semantics: SendSemantics,
-        nested: Nesting,
         managers: Vec<Identifier>,
         manages: Vec<Identifier>,
         decls: Vec<MessageDecl>,
     ) -> Protocol {
         Protocol {
+            attributes: attributes,
             send_semantics: send_semantics,
-            nested: nested,
             managers: managers,
             manages: manages,
             messages: decls,
@@ -377,8 +375,7 @@ pub struct UsingStmt {
     pub cxx_type: TypeSpec,
     pub header: String,
     pub kind: Option<CxxTypeKind>,
-    pub refcounted: bool,
-    pub moveonly: bool,
+    pub attributes: Attributes,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -412,7 +409,7 @@ pub struct TranslationUnit {
     pub cxx_includes: Vec<String>,
     pub includes: Vec<TUId>,
     pub using: Vec<UsingStmt>,
-    pub structs: Vec<(Namespace, Vec<StructField>)>,
-    pub unions: Vec<(Namespace, Vec<TypeSpec>)>,
+    pub structs: Vec<(Namespace, Attributes, Vec<StructField>)>,
+    pub unions: Vec<(Namespace, Attributes, Vec<TypeSpec>)>,
     pub protocol: Option<(Namespace, Protocol)>,
 }

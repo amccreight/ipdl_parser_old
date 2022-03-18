@@ -13,8 +13,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use ast::{
-    Direction, FileType, Location, Protocol, StructField, TUId, TranslationUnit, TypeSpec,
-    UsingStmt,
+    Attributes, Direction, FileType, Location, Protocol, StructField, TUId, TranslationUnit,
+    TypeSpec, UsingStmt,
 };
 use errors::Errors;
 use ipdl::TranslationUnitParser;
@@ -164,8 +164,8 @@ pub enum PreambleStmt {
 }
 
 pub enum TopLevelDecl {
-    Struct(Vec<StructField>),
-    Union(Vec<TypeSpec>),
+    Struct(Attributes, Vec<StructField>),
+    Union(Attributes, Vec<TypeSpec>),
     Protocol(Protocol),
 }
 

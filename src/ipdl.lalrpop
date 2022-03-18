@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use ast::{Compress, CxxTypeKind, Direction, FileType, Identifier,
-          Location, MessageDecl, MessageModifier, Namespace, Nesting,
-          Param, Priority, Protocol, QualifiedId, SendSemantics,
+use ast::{Attributes, AttributeValue, CxxTypeKind, Direction, FileType, Identifier,
+          Location, MessageDecl, Namespace,
+          Param, Protocol, QualifiedId, SendSemantics,
           StructField, TranslationUnit, TypeSpec, UsingStmt};
 
 use parser::{TopLevelDecl, ParserState, PreambleStmt};
@@ -13,6 +13,7 @@ grammar<'a>(parser_state: &ParserState<'a>);
 
 //-----------------------------------------------------------------------------
 
+// XXX String now has a location and trims the quotes before and after.
 STRING: String = <s:r#""[^"\n]*""#> => String::from(s);
 
 Identifier: Identifier = {
@@ -25,12 +26,12 @@ Identifier: Identifier = {
 //-----------------------------------------------------------------------------
 
 pub TranslationUnit: TranslationUnit = {
-    <ps:Preamble> <ns:NamespaceThing+> => {
+    <ps:(PreambleStmt ";")*> <ns:NamespaceThing+> => {
         let mut cxx_includes = Vec::new();
         let mut includes = Vec::new();
         let mut using = Vec::new();
         for p in ps {
-            match p {
+            match p.0 {
                 PreambleStmt::CxxInclude(f) => cxx_includes.push(f),
                 PreambleStmt::Include(f) => includes.push(f),
                 PreambleStmt::Using(u) => using.push(u),
@@ -45,12 +46,12 @@ pub TranslationUnit: TranslationUnit = {
         for nts in ns {
             for (ns, d) in nts {
                 match d {
-                    TopLevelDecl::Struct(s) => {
-                        structs.push((ns, s));
+                    TopLevelDecl::Struct(a, s) => {
+                        structs.push((ns, a, s));
                         last_is_struct = true;
                     },
-                    TopLevelDecl::Union(u) => {
-                        unions.push((ns, u));
+                    TopLevelDecl::Union(a, u) => {
+                        unions.push((ns, a, u));
                         last_is_struct = false;
                     },
                     TopLevelDecl::Protocol(p) => {
@@ -103,15 +104,6 @@ pub TranslationUnit: TranslationUnit = {
 
 //--------------------
 // Preamble
-Preamble: Vec<PreambleStmt> = {
-    (PreambleStmt ";")* => {
-        let mut v = Vec::new();
-        for (p, _) in <> {
-            v.push(p);
-        }
-        v
-    }
-};
 
 PreambleStmt = { CxxIncludeStmt, IncludeStmt, UsingStmt };
 
@@ -132,12 +124,11 @@ IncludeStmt: PreambleStmt = {
 };
 
 UsingStmt: PreambleStmt = {
-    "using" <rc:"refcounted"?> <mo:"moveonly"?> <k:CxxTypeKind?> <t:CxxType> "from" <h:STRING> =>
+    <a:Attributes> "using" <k:CxxTypeKind?> <t:CxxType> "from" <h:STRING> =>
         PreambleStmt::Using(UsingStmt { cxx_type: t,
                                         header: h,
                                         kind: k,
-                                        refcounted: rc.is_some(),
-                                        moveonly: mo.is_some()}),
+                                        attributes: a}),
 };
 
 CxxTypeKind: CxxTypeKind = {
@@ -160,18 +151,19 @@ NamespaceThing: Vec<(Namespace, TopLevelDecl)> = {
         }
         things
     },
-    <s:StructDecl> => vec![(s.0, TopLevelDecl::Struct(s.1))],
-    <u:UnionDecl> => vec![(u.0, TopLevelDecl::Union(u.1))],
+    <s:StructDecl> => vec![(s.0, TopLevelDecl::Struct(s.1, s.2))],
+    <u:UnionDecl> => vec![(u.0, TopLevelDecl::Union(u.1, u.2))],
     <p:ProtocolDefn> => vec![(p.0, TopLevelDecl::Protocol(p.1))],
 };
 
-StructDecl: (Namespace, Vec<StructField>) = {
-    "struct" <name:Identifier> "{" <raw_fields: (StructField ";")* > "}" ";" => {
+
+StructDecl: (Namespace, Attributes, Vec<StructField>) = {
+    <a:Attributes> "struct" <name:Identifier> "{" <raw_fields: (StructField ";")* > "}" ";" => {
         let mut fields = Vec::new();
         for (f, _) in raw_fields {
             fields.push(f);
         }
-        (Namespace::new(name), fields)
+        (Namespace::new(name), a, fields)
     }
 };
 
@@ -179,28 +171,27 @@ StructField: StructField = {
     <t:Type> <field_name:Identifier> => StructField::new(t, field_name)
 };
 
-UnionDecl: (Namespace, Vec<TypeSpec>) = {
-    "union" <name:Identifier> "{" <raw_components: (Type ";")+ > "}" ";" => {
+UnionDecl: (Namespace, Attributes, Vec<TypeSpec>) = {
+    <a:Attributes> "union" <name:Identifier> "{" <raw_components: (Type ";")+ > "}" ";" => {
         let mut components = Vec::new();
         for (c, _) in raw_components {
             components.push(c);
         }
-        (Namespace::new(name), components)
+        (Namespace::new(name), a, components)
     }
 };
 
 ProtocolDefn: (Namespace, Protocol) = {
-    <q:ProtocolSendSemanticsQual?> "protocol" <name:Identifier> "{"
+    <a:Attributes> <q:SendSemantics?> "protocol" <name:Identifier> "{"
         <managers:ManagersStmtOpt> <manages:ManagesStmt*> <decls:MessageDeclThing*> "}" ";" =>
     {
-
         if let FileType::Header = parser_state.file_type {
             parser_state.add_error(&name.loc,
                                    "can't define a protocol in a header.  Do it in a protocol spec instead.");
         }
 
-        let (nested, send_semantics) = q.unwrap_or((Nesting::None, SendSemantics::Async));
-        (Namespace::new(name), Protocol::new(send_semantics, nested, managers, manages, decls))
+        let send_semantics = q.unwrap_or(SendSemantics::Async);
+        (Namespace::new(name), Protocol::new(a, send_semantics, managers, manages, decls))
     },
 };
 
@@ -241,35 +232,18 @@ MessageDirectionLabel : () = {
     "both" => parser_state.direction.set(Some(Direction::ToParentOrChild)),
 };
 
-MessageDecl: MessageDecl = {
-    <qual:SendSemanticsQual> <msg:MessageBody> => {
-        let mut msg = msg;
-        msg.nested = qual.0;
-        msg.prio = qual.1;
-        msg.send_semantics = qual.2;
 
-        // XXX Why isn't direction set in MessageBody? Then it might
-        // not need to be an Option.
-        msg.direction = match parser_state.direction.get() {
+MessageDecl: MessageDecl = {
+    <a:Attributes> <s:SendSemantics> <name:Identifier> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> => {
+        let d = match parser_state.direction.get() {
             Some(d) => d,
             None => {
-                parser_state.add_error(&msg.name.loc,
+                parser_state.add_error(&name.loc,
                                        "missing message direction");
                 Direction::ToParent // Dummy value.
             }
         };
-
-        msg
-    },
-};
-
-MessageBody: MessageDecl = {
-    <name:Identifier> "(" <in_params:ParamList> ")" <out_params:MessageOutParams> <modifiers:MessageModifier*> => {
-        let mut decl = MessageDecl::new(name);
-        decl.add_in_params(in_params);
-        decl.add_out_params(out_params);
-        decl.add_modifiers(modifiers);
-        decl
+        MessageDecl::new(name, a, s, d, in_params, out_params)
     },
 };
 
@@ -278,56 +252,41 @@ MessageOutParams: Vec<Param> = {
     => Vec::new(),
 };
 
-MessageModifier: MessageModifier = {
-    "verify" => MessageModifier::Verify,
-    "compress" => MessageModifier::Compress(Compress::Enabled),
-    "compressall" => MessageModifier::Compress(Compress::All),
+// --------------------
+// Attributes
+
+Attributes: Attributes = {
+    "[" <l:AttributeList> "]" => l,
+    => Attributes::new(),
 };
 
+AttributeList: Attributes = {
+    <name:Identifier> <v:AttributeValue> "," <attributes:AttributeList> => {
+        let mut attributes = attributes;
+        if attributes.insert(name.id.clone(), (name.loc.clone(), v)).is_some() {
+            parser_state.add_error(&name.loc,
+                                   &format!("Repeated extended attribute `{}'", &name.id));
+        }
+        attributes
+    },
+    <name:Identifier> <v:AttributeValue> => {
+        Attributes::from([(name.id.clone(), (name.loc.clone(), v))])
+    },
+};
+
+AttributeValue: AttributeValue = {
+    "=" <id:Identifier> => AttributeValue::Identifier(id),
+    "=" <s:STRING> => AttributeValue::String(s),
+    => AttributeValue::None,
+}
 
 //--------------------
 // Minor stuff
 
-Nesting: Nesting = {
-    "not" => Nesting::None,
-    "inside_sync" => Nesting::InsideSync,
-    "inside_cpow" => Nesting::InsideCpow,
-};
-
-Priority: Priority = {
-    "normal" => Priority::Normal,
-    "high" => Priority::High,
-    "input" => Priority::Input,
-};
-
-SendQualifier: (Option<Nesting>, Option<Priority>) = {
-    "nested" "(" <n:Nesting> ")" => (Some(n), None),
-    "prio" "(" <p:Priority> ")" => (None, Some(p)),
-};
-
-SendQualifierList: (Option<Nesting>, Option<Priority>) = {
-    <q:SendQualifier> <l:SendQualifierList> => (l.0.or(q.0), l.1.or(q.1)),
-    => (None, None)
-};
-
-SendSemanticsQual: (Nesting, Priority, SendSemantics) = {
-    <l:SendQualifierList> "async" =>
-        (l.0.unwrap_or(Nesting::None),
-         l.1.unwrap_or(Priority::Normal),
-         SendSemantics::Async),
-    <l:SendQualifierList> "sync" =>
-        (l.0.unwrap_or(Nesting::None),
-         l.1.unwrap_or(Priority::Normal),
-         SendSemantics::Sync),
-    "intr" => (Nesting::None, Priority::Normal, SendSemantics::Intr)
-};
-
-ProtocolSendSemanticsQual: (Nesting, SendSemantics) = {
-    "async" => (Nesting::None, SendSemantics::Async),
-    "sync" => (Nesting::None, SendSemantics::Sync),
-    "nested" "(" "upto" <n:Nesting> ")" "async" => (n, SendSemantics::Async),
-    "nested" "(" "upto" <n:Nesting> ")" "sync" => (n, SendSemantics::Sync),
-    "intr" => (Nesting::None, SendSemantics::Intr),
+SendSemantics: SendSemantics = {
+    "async" => SendSemantics::Async,
+    "sync" => SendSemantics::Sync,
+    "intr" => SendSemantics::Intr,
 };
 
 ParamList: Vec<Param> = {
@@ -341,7 +300,7 @@ ParamList: Vec<Param> = {
 };
 
 Param: Param = {
-    <t:Type> <name:Identifier> => Param::new(t, name)
+    <a:Attributes> <t:Type> <name:Identifier> => Param::new(a, t, name)
 };
 
 Type: TypeSpec = {
