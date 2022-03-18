@@ -17,16 +17,20 @@ const ERROR_PATH: &'static str = "error";
 
 const DISABLED_TESTS: &'static [&'static str] = &[];
 
-fn file_expected_error(file_name: &PathBuf) -> String {
+fn file_expected_error(file_name: &PathBuf) -> Vec<String> {
+    let mut errors = Vec::new();
     let f = File::open(file_name).unwrap();
 
     for line in BufReader::new(f).lines() {
         if line.as_ref().unwrap().starts_with("//error:") {
-            return line.unwrap().split_off(2);
+            errors.push(line.unwrap().split_off(2));
         }
     }
-    assert!(false, "Did not find any lines in the test file.");
-    String::new()
+    assert!(
+        errors.len() > 0,
+        "Test file should contain expected errors."
+    );
+    errors
 }
 
 // XXX This does not run efficiently. If A includes B, then we end up
@@ -63,13 +67,14 @@ fn test_files(test_file_path: &str, should_pass: bool) {
                 Ok(()) => assert!(expected_result, "Expected test to pass"),
                 Err(actual_error) => {
                     assert!(!expected_result, "Expected test to fail");
-                    let expected_error = file_expected_error(&entry.path());
-                    assert!(
-                        actual_error.find(&expected_error).is_some(),
-                        "Expected \"{}\" in \"{}\"",
-                        expected_error,
-                        actual_error
-                    );
+                    for expected_error in file_expected_error(&entry.path()) {
+                        assert!(
+                            actual_error.find(&expected_error).is_some(),
+                            "Expected \"{}\" in \"{}\"",
+                            expected_error,
+                            actual_error
+                        );
+                    }
                 }
             }
         }
