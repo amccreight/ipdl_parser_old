@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -42,10 +42,10 @@ in_files = False
 
 start_trim = len(leading_text_example)
 
-print "cargo run --",
+print("cargo run --", end=' ')
 
 for line in sys.stdin:
-    line = line [start_trim:-1]
+    line = line[start_trim:-1]
     if line.endswith("INCLUDES"):
         in_include = True
         continue
@@ -56,11 +56,13 @@ for line in sys.stdin:
         continue
     if line.endswith("DONE"):
         assert in_files
-        exit(0)
+        break
 
     if in_include:
-        print "-I", line,
+        print("-I", line, end=' ')
     elif in_files:
-        print line,
+        print(line, end=' ')
     else:
         assert False
+
+print()
