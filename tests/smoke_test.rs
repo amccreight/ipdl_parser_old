@@ -66,7 +66,11 @@ fn test_files(test_file_path: &str, should_pass: bool) {
             match ipdl_parser::compiler::compile(&include_dirs, file_name) {
                 Ok(()) => assert!(expected_result, "Expected test to pass"),
                 Err(actual_error) => {
-                    assert!(!expected_result, "Expected test to fail");
+                    assert!(
+                        !expected_result,
+                        "Expected test to pass, but it failed with \"{}\"",
+                        actual_error
+                    );
                     for expected_error in file_expected_error(&entry.path()) {
                         assert!(
                             actual_error.find(&expected_error).is_some(),
