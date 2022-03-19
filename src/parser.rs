@@ -330,6 +330,6 @@ pub fn parse_with_errors(
 pub fn parse(
     include_dirs: &Vec<PathBuf>,
     file_names: Vec<PathBuf>,
-) -> HashMap<TUId, TranslationUnit> {
-    parse_internal(include_dirs, file_names, /* ignore_errors = */ true).unwrap()
+) -> Option<HashMap<TUId, TranslationUnit>> {
+    parse_internal(include_dirs, file_names, /* ignore_errors = */ true).ok()
 }
