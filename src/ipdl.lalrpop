@@ -227,9 +227,9 @@ MessageDeclThing : MessageDecl = {
 };
 
 MessageDirectionLabel : () = {
-    "parent" => parser_state.direction.set(Some(Direction::ToParent)),
-    "child" => parser_state.direction.set(Some(Direction::ToChild)),
-    "both" => parser_state.direction.set(Some(Direction::ToParentOrChild)),
+    "parent" => parser_state.direction.set(Some(Direction::new_parent())),
+    "child" => parser_state.direction.set(Some(Direction::new_child())),
+    "both" => parser_state.direction.set(Some(Direction::new_both())),
 };
 
 
@@ -240,7 +240,7 @@ MessageDecl: MessageDecl = {
             None => {
                 parser_state.add_error(&name.loc,
                                        "missing message direction");
-                Direction::ToParent // Dummy value.
+                Direction::new_parent() // Dummy value.
             }
         };
         MessageDecl::new(name, a, s, d, in_params, out_params)

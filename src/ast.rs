@@ -250,23 +250,36 @@ pub enum Priority {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ProtocolSide {
+    Parent,
+    Child,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
-    ToParent,
-    ToChild,
-    ToParentOrChild,
+    To(ProtocolSide),
+    Both,
 }
 
 impl Direction {
+    pub fn new_parent() -> Direction {
+        Direction::To(ProtocolSide::Parent)
+    }
+
+    pub fn new_child() -> Direction {
+        Direction::To(ProtocolSide::Child)
+    }
+
+    pub fn new_both() -> Direction {
+        Direction::Both
+    }
+
     pub fn is_to_parent(&self) -> bool {
-        self == &Direction::ToParent
+        self == &Direction::Both || self == &Direction::To(ProtocolSide::Parent)
     }
 
     pub fn is_to_child(&self) -> bool {
-        self == &Direction::ToChild
-    }
-
-    pub fn is_both(&self) -> bool {
-        self == &Direction::ToParentOrChild
+        self == &Direction::Both || self == &Direction::To(ProtocolSide::Child)
     }
 }
 

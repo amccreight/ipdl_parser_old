@@ -1546,9 +1546,7 @@ fn check_types_message(ptype: &ProtocolTypeDef, mtype: &MessageTypeDef) -> Error
         );
     }
 
-    let is_to_child = mtype.direction.is_to_child() || mtype.direction.is_both();
-
-    if mtype.nested.inside_cpow() && is_to_child {
+    if mtype.nested.inside_cpow() && mtype.direction.is_to_child() {
         errors.append_one(&mtype.name.loc,
                           &format!("inside_cpow nested parent-to-child messages are verboten (here, message `{}' in protocol `{}')",
                                    mname, ptype.qname.short_name()));
@@ -1557,7 +1555,7 @@ fn check_types_message(ptype: &ProtocolTypeDef, mtype: &MessageTypeDef) -> Error
     // We allow inside_sync messages that are themselves sync to be sent from the
     // parent. Normal and inside_cpow nested messages that are sync can only come from
     // the child.
-    if mtype.is_sync() && mtype.nested.is_none() && is_to_child {
+    if mtype.is_sync() && mtype.nested.is_none() && mtype.direction.is_to_child() {
         errors.append_one(
             &mtype.name.loc,
             &format!(
