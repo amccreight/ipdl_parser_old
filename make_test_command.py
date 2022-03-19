@@ -16,23 +16,20 @@
 # for f in files:
 #     print(f)
 # print("DONE")
-
+#
 # 2. Adjust leading_text_example as necessary, if the log timestamp
 # stuff has changed.
-
-# 3. You'll need to manually adjust the script for any preprocessed
-# IPDL files. At the time of this writing, that is only
-# PMediaTransport.ipdl. Find that file in the script command and edit
-# the entry so that it is a reference to the full path in the objdir,
-# which will be something like:
 #
-# <obj-dir>/ipc/ipcl/PMediaTransport.ipdl
+# 3. Run this script. You'll need to pass in the path your Firefox
+# objdir as an argument, and pipe in the output from step 1. The
+# objdir is needed to find IPDL files that have been preprocessed,
+# such as PMediaTransport.ipdl. You can run the resulting command
+# with bash or whatever.
 
-# 3. Run this script on the output from step 1. This should produce a
-# command to run cargo with all of the files from step 1. You can run
-# it with bash or whatever.
-
+import argparse
+import pathlib
 import sys
+
 
 # Used to decide how many characters to chop off the start.
 leading_text_example = " 0:02.39 "
@@ -41,6 +38,18 @@ in_include = False
 in_files = False
 
 start_trim = len(leading_text_example)
+
+
+parser = argparse.ArgumentParser(description="Print out a command to parse Firefox IPDL files.")
+parser.add_argument("objdir", metavar='OBJDIR', type=str,
+                    help="Path to the objdir, to find the location of preprocessed IPDL files.")
+args = parser.parse_args()
+
+objdir = pathlib.Path(args.objdir)
+
+if not objdir.exists():
+    print("The objdir passed in should exist.")
+    exit(-1)
 
 print("cargo run --", end=' ')
 
@@ -58,11 +67,21 @@ for line in sys.stdin:
         assert in_files
         break
 
+    assert in_include or in_files
+
+    file_path = pathlib.Path(line)
+    if not file_path.exists():
+        file_path = objdir / "ipc" / "ipdl" / line
+        if not file_path.exists():
+            print()
+            print()
+            print("Couldn't find", line, "either directly or in the objdir.")
+            exit(-1)
+
     if in_include:
-        print("-I", line, end=' ')
+        print("-I", str(file_path), end=' ')
     elif in_files:
-        print(line, end=' ')
-    else:
-        assert False
+        print(str(file_path), end=' ')
+
 
 print()
