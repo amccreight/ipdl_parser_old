@@ -64,7 +64,7 @@ fn test_files(test_file_path: &str, should_pass: bool) {
 
             let file_name = vec![entry.path()];
             match ipdl_parser::compiler::compile(&include_dirs, file_name) {
-                Ok(()) => assert!(expected_result, "Expected test to pass"),
+                Ok(()) => assert!(expected_result, "Expected test to fail, but it passed"),
                 Err(actual_error) => {
                     assert!(
                         !expected_result,
