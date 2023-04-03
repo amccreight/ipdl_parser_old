@@ -16,6 +16,11 @@ pub fn uncomment(text: &str) -> String {
     for c in text.chars() {
         match (state, c) {
             (State::Default, '/') => state = State::StartComment,
+            // We now also treat preprocessor directives like they are comments.
+            (State::Default, '#') => {
+                s.push(' ');
+                state = State::InLineComment;
+            }
             (State::Default, _) => {
                 s.push(c);
                 state = State::Default;
@@ -75,6 +80,8 @@ fn basic_tests() {
     assert_eq!(uncomment("//123\n45"), "     \n45");
     assert_eq!(uncomment("//123\n45"), "     \n45");
     assert_eq!(uncomment("//123\n//45\n6"), "     \n    \n6");
+
+    assert_eq!(uncomment("#ifdef foo\nblah\n#endif\ngrah"), "          \nblah\n      \ngrah");
 
     assert_eq!(uncomment("0/*123*/0"), "0       0");
     assert_eq!(uncomment("0/*12\n3*/0"), "0    \n   0");
