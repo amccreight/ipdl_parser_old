@@ -16,7 +16,14 @@ pub fn uncomment(text: &str) -> String {
     for c in text.chars() {
         match (state, c) {
             (State::Default, '/') => state = State::StartComment,
-            // We now also treat preprocessor directives like they are comments.
+            // As a hack to maximize our ability to process files like
+            // mozilla-central's PContent.ipdl, we currently treat preprocessor
+            // directives like they are comments.  This is not sound from a
+            // correctness perspective (but also you should not be feeding this
+            // parser preprocessing directives; you should feed it the output of
+            // a preprocessor!).  Bug 1859884 tracks improving this behavior, at
+            // which time this handling of "#" can potentially be removed and go
+            // back to causing parse errors.
             (State::Default, '#') => {
                 s.push(' ');
                 state = State::InLineComment;
@@ -81,7 +88,15 @@ fn basic_tests() {
     assert_eq!(uncomment("//123\n45"), "     \n45");
     assert_eq!(uncomment("//123\n//45\n6"), "     \n    \n6");
 
-    assert_eq!(uncomment("#ifdef foo\nblah\n#endif\ngrah"), "          \nblah\n      \ngrah");
+    // Preprocessor directives get replaced with spaces (like comments).
+    assert_eq!(uncomment("#ifdef foo\nblah\n#endif\ngrah"),
+                         "          \nblah\n      \ngrah");
+    // Preproc directives inside `//` comments are treated as comments.
+    assert_eq!(uncomment("//#ifdef foo\nblah\n// #endif\ngrah"),
+                         "            \nblah\n         \ngrah");
+    // Preproc directives inside `/* */` comments are treated as comments.
+    assert_eq!(uncomment("/* #ifdef foo*/\nblah\n/*#endif*/\ngrah"),
+                         "               \nblah\n          \ngrah");
 
     assert_eq!(uncomment("0/*123*/0"), "0       0");
     assert_eq!(uncomment("0/*12\n3*/0"), "0    \n   0");
