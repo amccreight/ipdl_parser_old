@@ -12,10 +12,12 @@ version = "0.2.0"
 
 # Add a dependency on the LALRPOP runtime library:
 [dependencies.lalrpop-util]
-version = "0.19.6"
+git = "https://github.com/mozsearch/lalrpop"
+branch = "mozsearch-version1"
 
 [build-dependencies.lalrpop]
-version = "0.19.6"
+git = "https://github.com/mozsearch/lalrpop"
+branch = "mozsearch-version1"
 features = ["lexer"]
 
 [dependencies]
