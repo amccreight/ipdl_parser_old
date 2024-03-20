@@ -312,13 +312,13 @@ Type: TypeSpec = {
 // in favor of the |using| declaration
 BasicType: TypeSpec = {
     <id:CxxID> <is_array: ("[" "]")?> => {
-        TypeSpec::new(QualifiedId::new(id)).set_array(is_array.is_some())
+        TypeSpec::new(id).set_array(is_array.is_some())
     },
     <id:CxxID> "?" => {
-        TypeSpec::new(QualifiedId::new(id)).set_maybe(true)
+        TypeSpec::new(id).set_maybe(true)
     },
     <uniqueptr: CxxUniquePtrInst> => {
-        TypeSpec::new(QualifiedId::new(uniqueptr)).set_uniqueptr(true)
+        TypeSpec::new(uniqueptr).set_uniqueptr(true)
     },
 };
 
@@ -326,9 +326,9 @@ BasicType: TypeSpec = {
 //--------------------
 // C++ stuff
 
-CxxType: TypeSpec = {
-    <id:QualifiedID> => TypeSpec::new(id),
-    <id:CxxID> => TypeSpec::new(QualifiedId::new(id)),
+CxxType: QualifiedId = {
+    <id:QualifiedID> => id,
+    <id:CxxID> => QualifiedId::new(id),
 };
 
 QualifiedID: QualifiedId = {

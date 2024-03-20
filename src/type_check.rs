@@ -6,15 +6,20 @@ use ast::*;
 use errors::Errors;
 use std::collections::{HashMap, HashSet};
 
-const BUILTIN_TYPES: &'static [&'static str] = &[
+// C types
+//
+// These types don't live in any namespace, so can't be imported with `using`
+// statements like normal C++ types.
+const BUILTIN_C_TYPES: &'static [&'static str] = &[
     // C types
-    "bool",
-    "char",
-    "short",
-    "int",
-    "long",
-    "float",
-    "double",
+    "bool", "char", "short", "int", "long", "float", "double",
+];
+
+// C++ types
+//
+// These types must be fully qualified, and will be `typedef`-ed into IPDL
+// structs to make them readily available when used.
+const BUILTIN_TYPES: &'static [&'static str] = &[
     // stdint types
     "int8_t",
     "uint8_t",
@@ -41,8 +46,8 @@ const BUILTIN_TYPES: &'static [&'static str] = &[
     "mozilla::ipc::FileDescriptor",
 ];
 
-fn builtin_from_string(tname: &str) -> TypeSpec {
-    TypeSpec::new(QualifiedId::new_from_iter(tname.split("::")))
+fn builtin_from_string(tname: &str) -> QualifiedId {
+    QualifiedId::new_from_iter(tname.split("::"))
 }
 
 const DELETE_MESSAGE_NAME: &'static str = "__delete__";
@@ -82,6 +87,7 @@ enum Lifetime {
 // may be different.
 #[derive(Debug, Clone)]
 enum IPDLType {
+    BuiltinCType(&'static str),
     ImportedCxxType(
         QualifiedId,
         Lifetime,
@@ -116,6 +122,7 @@ impl IPDLType {
     // as self.__class__.__name__.
     fn type_name(&self) -> &'static str {
         match self {
+            &IPDLType::BuiltinCType(_) => "BuiltinCType",
             &IPDLType::ImportedCxxType(_, _, _, _) => "ImportedCxxType",
             &IPDLType::MessageType(_) => "MessageType",
             &IPDLType::ProtocolType(_) => "ProtocolType",
@@ -135,6 +142,7 @@ impl IPDLType {
 
     fn name(&self, tuts: &HashMap<TUId, TranslationUnitType>) -> String {
         match self {
+            &IPDLType::BuiltinCType(name) => name.to_string(),
             &IPDLType::ImportedCxxType(ref qid, _, _, _) => qid.short_name(),
             &IPDLType::MessageType(_) => "???".to_string(),
             &IPDLType::ProtocolType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
@@ -617,38 +625,32 @@ impl SymbolTable {
 
 fn declare_cxx_type(
     sym_tab: &mut SymbolTable,
-    cxx_type: &TypeSpec,
+    spec: &QualifiedId,
     refcounted: Lifetime,
     send_moveonly: bool,
     data_moveonly: bool,
 ) -> Errors {
-    let ipdl_type = match cxx_type.spec.full_name() {
-        Some(ref n) if n == "mozilla::ipc::Shmem" => IPDLType::ShmemType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::ByteBuf" => IPDLType::ByteBufType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::FileDescriptor" => {
-            IPDLType::FDType(cxx_type.spec.clone())
-        }
+    let ipdl_type = match spec.full_name() {
+        Some(ref n) if n == "::mozilla::ipc::Shmem" => IPDLType::ShmemType(spec.clone()),
+        Some(ref n) if n == "::mozilla::ipc::ByteBuf" => IPDLType::ByteBufType(spec.clone()),
+        Some(ref n) if n == "::mozilla::ipc::FileDescriptor" => IPDLType::FDType(spec.clone()),
         _ => {
-            let ipdl_type = IPDLType::ImportedCxxType(
-                cxx_type.spec.clone(),
-                refcounted,
-                send_moveonly,
-                data_moveonly,
-            );
-            let full_name = format!("{}", cxx_type.spec);
+            let ipdl_type =
+                IPDLType::ImportedCxxType(spec.clone(), refcounted, send_moveonly, data_moveonly);
+            let full_name = format!("{}", spec);
             // ??? What to do here for UniquePtr?
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
                         if (refcounted == Lifetime::RefCounted) != decl.decl_type.is_refcounted() {
-                            return Errors::one(&cxx_type.loc(),
+                            return Errors::one(&spec.loc(),
                                                &format!("inconsistent refcounted status of type `{}`, first declared at {}",
                                                         full_name, decl.loc));
                         }
                         if send_moveonly != decl.decl_type.is_send_moveonly()
                             || data_moveonly != decl.decl_type.is_data_moveonly()
                         {
-                            return Errors::one(&cxx_type.loc(),
+                            return Errors::one(&spec.loc(),
                                                    &format!("inconsistent moveonly status of type `{}`, first declared at {}",
                                                             full_name, decl.loc));
                         }
@@ -661,7 +663,7 @@ fn declare_cxx_type(
             ipdl_type
         }
     };
-    sym_tab.declare(Decl::new_from_qid(&cxx_type.spec, ipdl_type))
+    sym_tab.declare(Decl::new_from_qid(&spec, ipdl_type))
 }
 
 #[derive(Clone)]
@@ -1276,6 +1278,16 @@ fn gather_decls_tu(
         }
     }
 
+    // Declare builtin C types.
+    let builtin = Location::builtin();
+    for &t in BUILTIN_C_TYPES {
+        errors.append(sym_tab.declare(Decl::new(
+            &builtin,
+            IPDLType::BuiltinCType(t),
+            t.to_owned(),
+        )));
+    }
+
     // Declare builtin C++ types.
     for t in BUILTIN_TYPES {
         let cxx_type = builtin_from_string(t);
@@ -1389,6 +1401,7 @@ fn fully_defined(
             return fully_defined(&tuts, &mut defined, &t_inner)
         }
 
+        &IPDLType::BuiltinCType(_) => return true,
         &IPDLType::ImportedCxxType(_, _, _, _) => return true,
         &IPDLType::MessageType(_) => return true,
         &IPDLType::ProtocolType(_) => return true,
@@ -1458,7 +1471,7 @@ fn protocol_managers_cycles(
                 let cycle_names: Vec<String> = stack
                     .iter()
                     .chain([tuid.clone()].iter())
-                    .map(|p| get_protocol_type(&tuts, &p).qname.to_string())
+                    .map(|p| get_protocol_type(&tuts, &p).qname.short_name())
                     .collect::<Vec<String>>();
                 vec![format!("`{}'", cycle_names.join(" -> "))]
             }

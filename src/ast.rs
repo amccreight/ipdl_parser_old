@@ -30,11 +30,7 @@ impl QualifiedId {
     where
         I: Iterator<Item = &'a str>,
     {
-        let loc = Location {
-            file_name: PathBuf::from("<builtin>"),
-            lineno: 0,
-            colno: 0,
-        };
+        let loc = Location::builtin();
         let mut qual_id = QualifiedId::new(Identifier::new(
             String::from(ids.next().unwrap()),
             loc.clone(),
@@ -49,12 +45,9 @@ impl QualifiedId {
         self.base_id.to_string()
     }
 
+    // TODO: deoptionalize
     pub fn full_name(&self) -> Option<String> {
-        if self.quals.is_empty() {
-            None
-        } else {
-            Some(self.to_string())
-        }
+        Some(self.to_string())
     }
 
     pub fn loc(&self) -> &Location {
@@ -64,10 +57,12 @@ impl QualifiedId {
 
 impl fmt::Display for QualifiedId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // NOTE: include a leading "::" in order to force all QualifiedIds to be
+        // fully qualified types in C++
         for q in &self.quals {
-            write!(f, "{}::", q)?;
+            write!(f, "::{}", q)?;
         }
-        write!(f, "{}", self.base_id)
+        write!(f, "::{}", self.base_id)
     }
 }
 
@@ -82,7 +77,8 @@ pub type Attributes = HashMap<String, (Location, AttributeValue)>;
 
 #[derive(Debug)]
 pub struct TypeSpec {
-    pub spec: QualifiedId,
+    pub loc: Location,
+    pub spec: String,
     pub array: bool,
     pub maybe: bool,
     pub nullable: bool,
@@ -90,9 +86,10 @@ pub struct TypeSpec {
 }
 
 impl TypeSpec {
-    pub fn new(spec: QualifiedId) -> TypeSpec {
+    pub fn new(id: Identifier) -> TypeSpec {
         TypeSpec {
-            spec: spec,
+            loc: id.loc,
+            spec: id.id,
             array: false,
             maybe: false,
             nullable: false,
@@ -123,7 +120,7 @@ impl TypeSpec {
     }
 
     pub fn loc(&self) -> &Location {
-        self.spec.loc()
+        &self.loc
     }
 }
 
@@ -290,6 +287,16 @@ pub struct Location {
     pub colno: usize,
 }
 
+impl Location {
+    pub fn builtin() -> Location {
+        Location {
+            file_name: PathBuf::from("<builtin>"),
+            lineno: 0,
+            colno: 0,
+        }
+    }
+}
+
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -385,7 +392,7 @@ pub enum CxxTypeKind {
 
 #[derive(Debug)]
 pub struct UsingStmt {
-    pub cxx_type: TypeSpec,
+    pub cxx_type: QualifiedId,
     pub header: String,
     pub kind: Option<CxxTypeKind>,
     pub attributes: Attributes,
