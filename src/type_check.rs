@@ -379,8 +379,14 @@ struct MessageTypeDef {
     returns: Vec<ParamTypeDef>,
     mtype: MessageType,
     compress: Compress,
+    lazy_send: bool,
+    virtual_send: bool,
 }
 // XXX Need to add LegacyIntr, Tainted.
+
+fn has_attribute(attributes: &Attributes, key: &str) -> bool {
+    attributes.contains_key(key)
+}
 
 fn get_attribute_value<A: Clone>(
     attributes: &Attributes,
@@ -458,6 +464,8 @@ impl MessageTypeDef {
             returns: Vec::new(),
             mtype: mtype,
             compress: get_compress(&md.attributes),
+            lazy_send: has_attribute(&md.attributes, "LazySend"),
+            virtual_send: has_attribute(&md.attributes, "VirtualSendImpl"),
         }
     }
 
@@ -1103,6 +1111,8 @@ fn gather_decls_message(
             ]),
         ),
         ("LegacyIntr", Vec::new()),
+        ("LazySend", Vec::new()),
+        ("VirtualSendImpl", Vec::new()),
     ]);
     errors.append(check_attributes(&md.attributes, &message_attributes));
 
