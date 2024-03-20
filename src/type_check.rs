@@ -727,7 +727,19 @@ fn check_attributes(attributes: &Attributes, specs: &AttributeSpec) -> Errors {
         }
 
         if !spec.iter().any(|s| s.check(&value)) {
-            errors.append_one(&loc, "XXX IMPLEMENT A REAL MESSAGE");
+            let options = spec
+                .iter()
+                .map(|f| match f {
+                    AttributeSpecValue::Valueless => "None",
+                    AttributeSpecValue::StringLiteral => "StringLiteral",
+                    AttributeSpecValue::Keyword(k) => *k,
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            errors.append_one(
+                &loc,
+                &format!("invalid value for attribute `{name}', expected one of: {options}",),
+            );
         }
     }
 
