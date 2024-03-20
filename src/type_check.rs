@@ -374,6 +374,7 @@ struct MessageTypeDef {
     send_semantics: SendSemantics,
     nested: Nesting,
     prio: Priority,
+    reply_prio: Priority,
     direction: Direction,
     params: Vec<ParamTypeDef>,
     returns: Vec<ParamTypeDef>,
@@ -391,28 +392,23 @@ fn has_attribute(attributes: &Attributes, key: &str) -> bool {
 fn get_attribute_value<A: Clone>(
     attributes: &Attributes,
     key: &str,
-    not_present: A,
     no_value: A,
     identifier_map: HashMap<&'static str, A>,
     string_map: fn(&String) -> A,
-) -> A {
-    attributes
-        .get(key)
-        .map(|(_, v)| match v {
-            AttributeValue::Identifier(i) => {
-                (*identifier_map.get(&i.id as &str).unwrap_or(&not_present)).clone()
-            }
-            AttributeValue::String(s) => string_map(&s),
-            AttributeValue::None => no_value,
-        })
-        .unwrap_or(not_present)
+) -> Option<A> {
+    let v: &AttributeValue = &attributes.get(key)?.1;
+    let v: A = match v {
+        AttributeValue::Identifier(i) => identifier_map.get(i.id.as_str())?.clone(),
+        AttributeValue::String(s) => string_map(&s),
+        AttributeValue::None => no_value,
+    };
+    Some(v)
 }
 
 fn get_nested(attributes: &Attributes, key: &str) -> Nesting {
     get_attribute_value(
         attributes,
         key,
-        Nesting::None,
         Nesting::None,
         HashMap::from([
             ("not", Nesting::None),
@@ -421,13 +417,13 @@ fn get_nested(attributes: &Attributes, key: &str) -> Nesting {
         ]),
         |_| Nesting::None,
     )
+    .unwrap_or(Nesting::None)
 }
 
-fn get_prio(attributes: &Attributes) -> Priority {
+fn get_prio_impl(attributes: &Attributes, key: &str) -> Option<Priority> {
     get_attribute_value(
         attributes,
-        "Priority",
-        Priority::Normal,
+        key,
         Priority::Normal,
         HashMap::from([
             ("normal", Priority::Normal),
@@ -440,15 +436,23 @@ fn get_prio(attributes: &Attributes) -> Priority {
     )
 }
 
+fn get_prio(attributes: &Attributes) -> Priority {
+    get_prio_impl(attributes, "Priority").unwrap_or(Priority::Normal)
+}
+
+fn get_reply_prio(attributes: &Attributes) -> Priority {
+    get_prio_impl(attributes, "ReplyPriority").unwrap_or_else(|| get_prio(attributes))
+}
+
 fn get_compress(attributes: &Attributes) -> Compress {
     get_attribute_value(
         attributes,
         "Compress",
-        Compress::None,
         Compress::Enabled,
         HashMap::from([("all", Compress::All)]),
         |_| Compress::None,
     )
+    .unwrap_or(Compress::None)
 }
 
 impl MessageTypeDef {
@@ -459,10 +463,11 @@ impl MessageTypeDef {
             send_semantics: md.send_semantics,
             nested: get_nested(&md.attributes, "Nested"),
             prio: get_prio(&md.attributes),
+            reply_prio: get_reply_prio(&md.attributes),
             direction: md.direction,
             params: Vec::new(),
             returns: Vec::new(),
-            mtype: mtype,
+            mtype,
             compress: get_compress(&md.attributes),
             lazy_send: has_attribute(&md.attributes, "LazySend"),
             virtual_send: has_attribute(&md.attributes, "VirtualSendImpl"),
@@ -1083,37 +1088,41 @@ fn gather_decls_message(
 
     sym_tab.enter_scope();
 
-    let message_attributes: AttributeSpec = HashMap::from([
-        ("Tainted", Vec::new()),
-        (
-            "Compress",
-            Vec::from([
-                AttributeSpecValue::Valueless,
-                AttributeSpecValue::Keyword("all"),
-            ]),
-        ),
-        (
-            "Priority",
+    let message_attributes: AttributeSpec = {
+        let priorities = || {
             Vec::from([
                 AttributeSpecValue::Keyword("normal"),
                 AttributeSpecValue::Keyword("input"),
                 AttributeSpecValue::Keyword("vsync"),
                 AttributeSpecValue::Keyword("mediumhigh"),
                 AttributeSpecValue::Keyword("control"),
-            ]),
-        ),
-        (
-            "Nested",
-            Vec::from([
-                AttributeSpecValue::Keyword("not"),
-                AttributeSpecValue::Keyword("inside_sync"),
-                AttributeSpecValue::Keyword("inside_cpow"),
-            ]),
-        ),
-        ("LegacyIntr", Vec::new()),
-        ("LazySend", Vec::new()),
-        ("VirtualSendImpl", Vec::new()),
-    ]);
+            ])
+        };
+
+        HashMap::from([
+            ("Tainted", Vec::new()),
+            (
+                "Compress",
+                Vec::from([
+                    AttributeSpecValue::Valueless,
+                    AttributeSpecValue::Keyword("all"),
+                ]),
+            ),
+            ("Priority", priorities()),
+            ("ReplyPriority", priorities()),
+            (
+                "Nested",
+                Vec::from([
+                    AttributeSpecValue::Keyword("not"),
+                    AttributeSpecValue::Keyword("inside_sync"),
+                    AttributeSpecValue::Keyword("inside_cpow"),
+                ]),
+            ),
+            ("LegacyIntr", Vec::new()),
+            ("LazySend", Vec::new()),
+            ("VirtualSendImpl", Vec::new()),
+        ])
+    };
     errors.append(check_attributes(&md.attributes, &message_attributes));
 
     let mut msg_type = MessageTypeDef::new(&md, &message_name, mtype);
