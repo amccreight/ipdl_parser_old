@@ -96,7 +96,7 @@ enum IPDLType {
     ),
     MessageType(TypeRef),
     ProtocolType(TUId),
-    ActorType(TUId, bool /* nullable */),
+    ActorType(TUId),
     StructType(TypeRef),
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
@@ -107,6 +107,7 @@ enum IPDLType {
     EndpointType(QualifiedId),
     ManagedEndpointType(QualifiedId),
     UniquePtrType(Box<IPDLType>),
+    NotNullType(Box<IPDLType>),
 }
 
 fn get_protocol_type<'a>(
@@ -126,7 +127,7 @@ impl IPDLType {
             &IPDLType::ImportedCxxType(_, _, _, _) => "ImportedCxxType",
             &IPDLType::MessageType(_) => "MessageType",
             &IPDLType::ProtocolType(_) => "ProtocolType",
-            &IPDLType::ActorType(_, _) => "ActorType",
+            &IPDLType::ActorType(_) => "ActorType",
             &IPDLType::StructType(_) => "StructType",
             &IPDLType::UnionType(_) => "UnionType",
             &IPDLType::ArrayType(_) => "ArrayType",
@@ -137,6 +138,7 @@ impl IPDLType {
             &IPDLType::EndpointType(_) => "EndpointType",
             &IPDLType::ManagedEndpointType(_) => "ManagedEndpointType",
             &IPDLType::UniquePtrType(_) => "UniquePtrType",
+            &IPDLType::NotNullType(_) => "NotNullType",
         }
     }
 
@@ -146,7 +148,7 @@ impl IPDLType {
             &IPDLType::ImportedCxxType(ref qid, _, _, _) => qid.short_name(),
             &IPDLType::MessageType(_) => "???".to_string(),
             &IPDLType::ProtocolType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
-            &IPDLType::ActorType(ref p, _) => get_protocol_type(&tuts, &p).qname.to_string(),
+            &IPDLType::ActorType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
             &IPDLType::StructType(ref tr) => tr.lookup_struct(&tuts).qname.to_string(),
             &IPDLType::UnionType(ref tr) => tr.lookup_union(&tuts).qname.to_string(),
             &IPDLType::ArrayType(ref t_inner) => {
@@ -170,6 +172,12 @@ impl IPDLType {
                 up_name.push_str(">");
                 up_name
             }
+            &IPDLType::NotNullType(ref t_inner) => {
+                let mut nn_name = "NotNullPtr<".to_string();
+                nn_name.push_str(&t_inner.name(&tuts));
+                nn_name.push_str(">");
+                nn_name
+            }
         }
     }
 
@@ -181,18 +189,27 @@ impl IPDLType {
         let mut errors = Errors::none();
         let mut itype = self.clone();
 
+        if type_spec.uniqueptr {
+            itype = IPDLType::UniquePtrType(Box::new(itype))
+        }
+
         if let &IPDLType::ProtocolType(ref p) = self {
-            itype = IPDLType::ActorType(p.clone(), type_spec.nullable)
+            itype = IPDLType::ActorType(p.clone())
         }
 
         match itype {
-            IPDLType::ActorType(_, _) => (),
+            // This case covers when supportsNullable() from type.py is true.
+            IPDLType::ActorType(_) | IPDLType::ImportedCxxType(_, Lifetime::RefCounted, _, _) => {
+                if !type_spec.nullable {
+                    itype = IPDLType::NotNullType(Box::new(itype))
+                }
+            }
             _ => {
                 if type_spec.nullable {
                     errors.append_one(
                         type_spec.loc(),
                         &format!(
-                            "`nullable' qualifier for type `{}' makes no sense",
+                            "`nullable' qualifier for type `{}' is unsupported",
                             itype.name(&tuts)
                         ),
                     );
@@ -206,10 +223,6 @@ impl IPDLType {
 
         if type_spec.maybe {
             itype = IPDLType::MaybeType(Box::new(itype))
-        }
-
-        if type_spec.uniqueptr {
-            itype = IPDLType::UniquePtrType(Box::new(itype))
         }
 
         (errors, itype)
@@ -1400,12 +1413,13 @@ fn fully_defined(
         &IPDLType::UniquePtrType(ref t_inner) => {
             return fully_defined(&tuts, &mut defined, &t_inner)
         }
+        &IPDLType::NotNullType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
 
         &IPDLType::BuiltinCType(_) => return true,
         &IPDLType::ImportedCxxType(_, _, _, _) => return true,
         &IPDLType::MessageType(_) => return true,
         &IPDLType::ProtocolType(_) => return true,
-        &IPDLType::ActorType(_, _) => return true,
+        &IPDLType::ActorType(_) => return true,
         &IPDLType::ShmemType(_) => return true,
         &IPDLType::ByteBufType(_) => return true,
         &IPDLType::FDType(_) => return true,
