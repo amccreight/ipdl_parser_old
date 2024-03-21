@@ -1205,16 +1205,6 @@ fn gather_decls_protocol(
         ));
     }
 
-    if p.1.managers.len() == 0 && p.1.messages.len() == 0 {
-        errors.append_one(
-            &p.0.name.loc,
-            &format!(
-                "top-level protocol `{}' cannot be empty",
-                p.0.qname().short_name()
-            ),
-        );
-    }
-
     for md in &p.1.messages {
         errors.append(gather_decls_message(
             &mut sym_tab,
