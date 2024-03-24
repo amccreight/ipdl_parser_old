@@ -1137,6 +1137,26 @@ fn gather_decls_message(
         );
     }
 
+    if !msg_type.is_async() && has_attribute(&md.attributes, "ReplyPriority") {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-async message `{}' cannot specify [ReplyPriority]",
+                &message_name
+            ),
+        );
+    }
+
+    if md.out_params.len() > 0 && has_attribute(&md.attributes, "ReplyPriority") {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-returns message `{}' cannot specify [ReplyPriority]",
+                &message_name
+            ),
+        );
+    }
+
     {
         // The Python version adds the parameter, just with a dummy
         // type. Here I choose to be consistent with how we handle struct
