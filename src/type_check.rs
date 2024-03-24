@@ -1118,6 +1118,16 @@ fn gather_decls_message(
 
     let mut msg_type = MessageTypeDef::new(&md, &message_name, mtype);
 
+    if !msg_type.is_async() && msg_type.lazy_send {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-async message `{}' cannot specify [LazySend]",
+                &message_name
+            ),
+        );
+    }
+
     {
         // The Python version adds the parameter, just with a dummy
         // type. Here I choose to be consistent with how we handle struct
