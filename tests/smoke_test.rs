@@ -72,12 +72,26 @@ fn test_files(test_file_path: &str, should_pass: bool) {
                         actual_error
                     );
                     for expected_error in file_expected_error(&entry.path()) {
-                        assert!(
-                            actual_error.find(&expected_error).is_some(),
-                            "Expected \"{}\" in \"{}\"",
-                            expected_error,
-                            actual_error
-                        );
+                        // Lexer errors are different in lalrpop than in Ply,
+                        // so do some translation so that the dtorReserved.ipdl
+                        // error message passes.
+                        if expected_error
+                            .find("lexically invalid characters")
+                            .is_some()
+                        {
+                            assert!(
+                                actual_error.find("Unexpected token").is_some(),
+                                "Expected \"Unexpected token\" in \"{}\"",
+                                actual_error
+                            );
+                        } else {
+                            assert!(
+                                actual_error.find(&expected_error).is_some(),
+                                "Expected \"{}\" in \"{}\"",
+                                expected_error,
+                                actual_error
+                            );
+                        }
                     }
                 }
             }
