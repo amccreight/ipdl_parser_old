@@ -89,14 +89,20 @@ fn basic_tests() {
     assert_eq!(uncomment("//123\n//45\n6"), "     \n    \n6");
 
     // Preprocessor directives get replaced with spaces (like comments).
-    assert_eq!(uncomment("#ifdef foo\nblah\n#endif\ngrah"),
-                         "          \nblah\n      \ngrah");
+    assert_eq!(
+        uncomment("#ifdef foo\nblah\n#endif\ngrah"),
+        "          \nblah\n      \ngrah"
+    );
     // Preproc directives inside `//` comments are treated as comments.
-    assert_eq!(uncomment("//#ifdef foo\nblah\n// #endif\ngrah"),
-                         "            \nblah\n         \ngrah");
+    assert_eq!(
+        uncomment("//#ifdef foo\nblah\n// #endif\ngrah"),
+        "            \nblah\n         \ngrah"
+    );
     // Preproc directives inside `/* */` comments are treated as comments.
-    assert_eq!(uncomment("/* #ifdef foo*/\nblah\n/*#endif*/\ngrah"),
-                         "               \nblah\n          \ngrah");
+    assert_eq!(
+        uncomment("/* #ifdef foo*/\nblah\n/*#endif*/\ngrah"),
+        "               \nblah\n          \ngrah"
+    );
 
     assert_eq!(uncomment("0/*123*/0"), "0       0");
     assert_eq!(uncomment("0/*12\n3*/0"), "0    \n   0");

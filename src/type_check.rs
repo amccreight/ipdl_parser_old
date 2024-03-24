@@ -6,15 +6,20 @@ use ast::*;
 use errors::Errors;
 use std::collections::{HashMap, HashSet};
 
-const BUILTIN_TYPES: &'static [&'static str] = &[
+// C types
+//
+// These types don't live in any namespace, so can't be imported with `using`
+// statements like normal C++ types.
+const BUILTIN_C_TYPES: &'static [&'static str] = &[
     // C types
-    "bool",
-    "char",
-    "short",
-    "int",
-    "long",
-    "float",
-    "double",
+    "bool", "char", "short", "int", "long", "float", "double",
+];
+
+// C++ types
+//
+// These types must be fully qualified, and will be `typedef`-ed into IPDL
+// structs to make them readily available when used.
+const BUILTIN_TYPES: &'static [&'static str] = &[
     // stdint types
     "int8_t",
     "uint8_t",
@@ -41,8 +46,8 @@ const BUILTIN_TYPES: &'static [&'static str] = &[
     "mozilla::ipc::FileDescriptor",
 ];
 
-fn builtin_from_string(tname: &str) -> TypeSpec {
-    TypeSpec::new(QualifiedId::new_from_iter(tname.split("::")))
+fn builtin_from_string(tname: &str) -> QualifiedId {
+    QualifiedId::new_from_iter(tname.split("::"))
 }
 
 const DELETE_MESSAGE_NAME: &'static str = "__delete__";
@@ -82,6 +87,7 @@ enum Lifetime {
 // may be different.
 #[derive(Debug, Clone)]
 enum IPDLType {
+    BuiltinCType(&'static str),
     ImportedCxxType(
         QualifiedId,
         Lifetime,
@@ -90,7 +96,7 @@ enum IPDLType {
     ),
     MessageType(TypeRef),
     ProtocolType(TUId),
-    ActorType(TUId, bool /* nullable */),
+    ActorType(TUId),
     StructType(TypeRef),
     UnionType(TypeRef),
     ArrayType(Box<IPDLType>),
@@ -101,6 +107,7 @@ enum IPDLType {
     EndpointType(QualifiedId),
     ManagedEndpointType(QualifiedId),
     UniquePtrType(Box<IPDLType>),
+    NotNullType(Box<IPDLType>),
 }
 
 fn get_protocol_type<'a>(
@@ -116,10 +123,11 @@ impl IPDLType {
     // as self.__class__.__name__.
     fn type_name(&self) -> &'static str {
         match self {
+            &IPDLType::BuiltinCType(_) => "BuiltinCType",
             &IPDLType::ImportedCxxType(_, _, _, _) => "ImportedCxxType",
             &IPDLType::MessageType(_) => "MessageType",
             &IPDLType::ProtocolType(_) => "ProtocolType",
-            &IPDLType::ActorType(_, _) => "ActorType",
+            &IPDLType::ActorType(_) => "ActorType",
             &IPDLType::StructType(_) => "StructType",
             &IPDLType::UnionType(_) => "UnionType",
             &IPDLType::ArrayType(_) => "ArrayType",
@@ -130,15 +138,17 @@ impl IPDLType {
             &IPDLType::EndpointType(_) => "EndpointType",
             &IPDLType::ManagedEndpointType(_) => "ManagedEndpointType",
             &IPDLType::UniquePtrType(_) => "UniquePtrType",
+            &IPDLType::NotNullType(_) => "NotNullType",
         }
     }
 
     fn name(&self, tuts: &HashMap<TUId, TranslationUnitType>) -> String {
         match self {
+            &IPDLType::BuiltinCType(name) => name.to_string(),
             &IPDLType::ImportedCxxType(ref qid, _, _, _) => qid.short_name(),
             &IPDLType::MessageType(_) => "???".to_string(),
             &IPDLType::ProtocolType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
-            &IPDLType::ActorType(ref p, _) => get_protocol_type(&tuts, &p).qname.to_string(),
+            &IPDLType::ActorType(ref p) => get_protocol_type(&tuts, &p).qname.to_string(),
             &IPDLType::StructType(ref tr) => tr.lookup_struct(&tuts).qname.to_string(),
             &IPDLType::UnionType(ref tr) => tr.lookup_union(&tuts).qname.to_string(),
             &IPDLType::ArrayType(ref t_inner) => {
@@ -162,6 +172,12 @@ impl IPDLType {
                 up_name.push_str(">");
                 up_name
             }
+            &IPDLType::NotNullType(ref t_inner) => {
+                let mut nn_name = "NotNullPtr<".to_string();
+                nn_name.push_str(&t_inner.name(&tuts));
+                nn_name.push_str(">");
+                nn_name
+            }
         }
     }
 
@@ -173,18 +189,27 @@ impl IPDLType {
         let mut errors = Errors::none();
         let mut itype = self.clone();
 
+        if type_spec.uniqueptr {
+            itype = IPDLType::UniquePtrType(Box::new(itype))
+        }
+
         if let &IPDLType::ProtocolType(ref p) = self {
-            itype = IPDLType::ActorType(p.clone(), type_spec.nullable)
+            itype = IPDLType::ActorType(p.clone())
         }
 
         match itype {
-            IPDLType::ActorType(_, _) => (),
+            // This case covers when supportsNullable() from type.py is true.
+            IPDLType::ActorType(_) | IPDLType::ImportedCxxType(_, Lifetime::RefCounted, _, _) => {
+                if !type_spec.nullable {
+                    itype = IPDLType::NotNullType(Box::new(itype))
+                }
+            }
             _ => {
                 if type_spec.nullable {
                     errors.append_one(
                         type_spec.loc(),
                         &format!(
-                            "`nullable' qualifier for type `{}' makes no sense",
+                            "`nullable' qualifier for type `{}' is unsupported",
                             itype.name(&tuts)
                         ),
                     );
@@ -198,10 +223,6 @@ impl IPDLType {
 
         if type_spec.maybe {
             itype = IPDLType::MaybeType(Box::new(itype))
-        }
-
-        if type_spec.uniqueptr {
-            itype = IPDLType::UniquePtrType(Box::new(itype))
         }
 
         (errors, itype)
@@ -353,39 +374,41 @@ struct MessageTypeDef {
     send_semantics: SendSemantics,
     nested: Nesting,
     prio: Priority,
+    reply_prio: Priority,
     direction: Direction,
     params: Vec<ParamTypeDef>,
     returns: Vec<ParamTypeDef>,
     mtype: MessageType,
     compress: Compress,
+    lazy_send: bool,
+    virtual_send: bool,
 }
 // XXX Need to add LegacyIntr, Tainted.
+
+fn has_attribute(attributes: &Attributes, key: &str) -> bool {
+    attributes.contains_key(key)
+}
 
 fn get_attribute_value<A: Clone>(
     attributes: &Attributes,
     key: &str,
-    not_present: A,
     no_value: A,
     identifier_map: HashMap<&'static str, A>,
     string_map: fn(&String) -> A,
-) -> A {
-    attributes
-        .get(key)
-        .map(|(_, v)| match v {
-            AttributeValue::Identifier(i) => {
-                (*identifier_map.get(&i.id as &str).unwrap_or(&not_present)).clone()
-            }
-            AttributeValue::String(s) => string_map(&s),
-            AttributeValue::None => no_value,
-        })
-        .unwrap_or(not_present)
+) -> Option<A> {
+    let v: &AttributeValue = &attributes.get(key)?.1;
+    let v: A = match v {
+        AttributeValue::Identifier(i) => identifier_map.get(i.id.as_str())?.clone(),
+        AttributeValue::String(s) => string_map(&s),
+        AttributeValue::None => no_value,
+    };
+    Some(v)
 }
 
 fn get_nested(attributes: &Attributes, key: &str) -> Nesting {
     get_attribute_value(
         attributes,
         key,
-        Nesting::None,
         Nesting::None,
         HashMap::from([
             ("not", Nesting::None),
@@ -394,13 +417,13 @@ fn get_nested(attributes: &Attributes, key: &str) -> Nesting {
         ]),
         |_| Nesting::None,
     )
+    .unwrap_or(Nesting::None)
 }
 
-fn get_prio(attributes: &Attributes) -> Priority {
+fn get_prio_impl(attributes: &Attributes, key: &str) -> Option<Priority> {
     get_attribute_value(
         attributes,
-        "Priority",
-        Priority::Normal,
+        key,
         Priority::Normal,
         HashMap::from([
             ("normal", Priority::Normal),
@@ -413,15 +436,23 @@ fn get_prio(attributes: &Attributes) -> Priority {
     )
 }
 
+fn get_prio(attributes: &Attributes) -> Priority {
+    get_prio_impl(attributes, "Priority").unwrap_or(Priority::Normal)
+}
+
+fn get_reply_prio(attributes: &Attributes) -> Priority {
+    get_prio_impl(attributes, "ReplyPriority").unwrap_or_else(|| get_prio(attributes))
+}
+
 fn get_compress(attributes: &Attributes) -> Compress {
     get_attribute_value(
         attributes,
         "Compress",
-        Compress::None,
         Compress::Enabled,
         HashMap::from([("all", Compress::All)]),
         |_| Compress::None,
     )
+    .unwrap_or(Compress::None)
 }
 
 impl MessageTypeDef {
@@ -432,11 +463,14 @@ impl MessageTypeDef {
             send_semantics: md.send_semantics,
             nested: get_nested(&md.attributes, "Nested"),
             prio: get_prio(&md.attributes),
+            reply_prio: get_reply_prio(&md.attributes),
             direction: md.direction,
             params: Vec::new(),
             returns: Vec::new(),
-            mtype: mtype,
+            mtype,
             compress: get_compress(&md.attributes),
+            lazy_send: has_attribute(&md.attributes, "LazySend"),
+            virtual_send: has_attribute(&md.attributes, "VirtualSendImpl"),
         }
     }
 
@@ -617,38 +651,32 @@ impl SymbolTable {
 
 fn declare_cxx_type(
     sym_tab: &mut SymbolTable,
-    cxx_type: &TypeSpec,
+    spec: &QualifiedId,
     refcounted: Lifetime,
     send_moveonly: bool,
     data_moveonly: bool,
 ) -> Errors {
-    let ipdl_type = match cxx_type.spec.full_name() {
-        Some(ref n) if n == "mozilla::ipc::Shmem" => IPDLType::ShmemType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::ByteBuf" => IPDLType::ByteBufType(cxx_type.spec.clone()),
-        Some(ref n) if n == "mozilla::ipc::FileDescriptor" => {
-            IPDLType::FDType(cxx_type.spec.clone())
-        }
+    let ipdl_type = match spec.full_name() {
+        Some(ref n) if n == "::mozilla::ipc::Shmem" => IPDLType::ShmemType(spec.clone()),
+        Some(ref n) if n == "::mozilla::ipc::ByteBuf" => IPDLType::ByteBufType(spec.clone()),
+        Some(ref n) if n == "::mozilla::ipc::FileDescriptor" => IPDLType::FDType(spec.clone()),
         _ => {
-            let ipdl_type = IPDLType::ImportedCxxType(
-                cxx_type.spec.clone(),
-                refcounted,
-                send_moveonly,
-                data_moveonly,
-            );
-            let full_name = format!("{}", cxx_type.spec);
+            let ipdl_type =
+                IPDLType::ImportedCxxType(spec.clone(), refcounted, send_moveonly, data_moveonly);
+            let full_name = format!("{}", spec);
             // ??? What to do here for UniquePtr?
             if let Some(decl) = sym_tab.lookup(&full_name) {
                 if let Some(existing_type) = decl.full_name {
                     if existing_type == full_name {
                         if (refcounted == Lifetime::RefCounted) != decl.decl_type.is_refcounted() {
-                            return Errors::one(&cxx_type.loc(),
+                            return Errors::one(&spec.loc(),
                                                &format!("inconsistent refcounted status of type `{}`, first declared at {}",
                                                         full_name, decl.loc));
                         }
                         if send_moveonly != decl.decl_type.is_send_moveonly()
                             || data_moveonly != decl.decl_type.is_data_moveonly()
                         {
-                            return Errors::one(&cxx_type.loc(),
+                            return Errors::one(&spec.loc(),
                                                    &format!("inconsistent moveonly status of type `{}`, first declared at {}",
                                                             full_name, decl.loc));
                         }
@@ -661,7 +689,7 @@ fn declare_cxx_type(
             ipdl_type
         }
     };
-    sym_tab.declare(Decl::new_from_qid(&cxx_type.spec, ipdl_type))
+    sym_tab.declare(Decl::new_from_qid(&spec, ipdl_type))
 }
 
 #[derive(Clone)]
@@ -727,7 +755,19 @@ fn check_attributes(attributes: &Attributes, specs: &AttributeSpec) -> Errors {
         }
 
         if !spec.iter().any(|s| s.check(&value)) {
-            errors.append_one(&loc, "XXX IMPLEMENT A REAL MESSAGE");
+            let options = spec
+                .iter()
+                .map(|f| match f {
+                    AttributeSpecValue::Valueless => "None",
+                    AttributeSpecValue::StringLiteral => "StringLiteral",
+                    AttributeSpecValue::Keyword(k) => *k,
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            errors.append_one(
+                &loc,
+                &format!("invalid value for attribute `{name}', expected one of: {options}",),
+            );
         }
     }
 
@@ -1048,38 +1088,74 @@ fn gather_decls_message(
 
     sym_tab.enter_scope();
 
-    let message_attributes: AttributeSpec = HashMap::from([
-        ("Tainted", Vec::new()),
-        (
-            "Compress",
-            Vec::from([
-                AttributeSpecValue::Valueless,
-                AttributeSpecValue::Keyword("all"),
-            ]),
-        ),
-        (
-            "Priority",
+    let message_attributes: AttributeSpec = {
+        let priorities = || {
             Vec::from([
                 AttributeSpecValue::Keyword("normal"),
                 AttributeSpecValue::Keyword("input"),
                 AttributeSpecValue::Keyword("vsync"),
                 AttributeSpecValue::Keyword("mediumhigh"),
                 AttributeSpecValue::Keyword("control"),
-            ]),
-        ),
-        (
-            "Nested",
-            Vec::from([
-                AttributeSpecValue::Keyword("not"),
-                AttributeSpecValue::Keyword("inside_sync"),
-                AttributeSpecValue::Keyword("inside_cpow"),
-            ]),
-        ),
-        ("LegacyIntr", Vec::new()),
-    ]);
+            ])
+        };
+
+        HashMap::from([
+            ("Tainted", Vec::new()),
+            (
+                "Compress",
+                Vec::from([
+                    AttributeSpecValue::Valueless,
+                    AttributeSpecValue::Keyword("all"),
+                ]),
+            ),
+            ("Priority", priorities()),
+            ("ReplyPriority", priorities()),
+            (
+                "Nested",
+                Vec::from([
+                    AttributeSpecValue::Keyword("not"),
+                    AttributeSpecValue::Keyword("inside_sync"),
+                    AttributeSpecValue::Keyword("inside_cpow"),
+                ]),
+            ),
+            ("LegacyIntr", Vec::new()),
+            ("LazySend", Vec::new()),
+            ("VirtualSendImpl", Vec::new()),
+        ])
+    };
     errors.append(check_attributes(&md.attributes, &message_attributes));
 
     let mut msg_type = MessageTypeDef::new(&md, &message_name, mtype);
+
+    if !msg_type.is_async() && msg_type.lazy_send {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-async message `{}' cannot specify [LazySend]",
+                &message_name
+            ),
+        );
+    }
+
+    if !msg_type.is_async() && has_attribute(&md.attributes, "ReplyPriority") {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-async message `{}' cannot specify [ReplyPriority]",
+                &message_name
+            ),
+        );
+    }
+
+    if md.out_params.len() > 0 && has_attribute(&md.attributes, "ReplyPriority") {
+        errors.append_one(
+            &md.name.loc,
+            &format!(
+                "non-returns message `{}' cannot specify [ReplyPriority]",
+                &message_name
+            ),
+        );
+    }
 
     {
         // The Python version adds the parameter, just with a dummy
@@ -1193,16 +1269,6 @@ fn gather_decls_protocol(
         ));
     }
 
-    if p.1.managers.len() == 0 && p.1.messages.len() == 0 {
-        errors.append_one(
-            &p.0.name.loc,
-            &format!(
-                "top-level protocol `{}' cannot be empty",
-                p.0.qname().short_name()
-            ),
-        );
-    }
-
     for md in &p.1.messages {
         errors.append(gather_decls_message(
             &mut sym_tab,
@@ -1272,6 +1338,16 @@ fn gather_decls_tu(
                 ));
             }
         }
+    }
+
+    // Declare builtin C types.
+    let builtin = Location::builtin();
+    for &t in BUILTIN_C_TYPES {
+        errors.append(sym_tab.declare(Decl::new(
+            &builtin,
+            IPDLType::BuiltinCType(t),
+            t.to_owned(),
+        )));
     }
 
     // Declare builtin C++ types.
@@ -1386,11 +1462,13 @@ fn fully_defined(
         &IPDLType::UniquePtrType(ref t_inner) => {
             return fully_defined(&tuts, &mut defined, &t_inner)
         }
+        &IPDLType::NotNullType(ref t_inner) => return fully_defined(&tuts, &mut defined, &t_inner),
 
+        &IPDLType::BuiltinCType(_) => return true,
         &IPDLType::ImportedCxxType(_, _, _, _) => return true,
         &IPDLType::MessageType(_) => return true,
         &IPDLType::ProtocolType(_) => return true,
-        &IPDLType::ActorType(_, _) => return true,
+        &IPDLType::ActorType(_) => return true,
         &IPDLType::ShmemType(_) => return true,
         &IPDLType::ByteBufType(_) => return true,
         &IPDLType::FDType(_) => return true,
@@ -1456,7 +1534,7 @@ fn protocol_managers_cycles(
                 let cycle_names: Vec<String> = stack
                     .iter()
                     .chain([tuid.clone()].iter())
-                    .map(|p| get_protocol_type(&tuts, &p).qname.to_string())
+                    .map(|p| get_protocol_type(&tuts, &p).qname.short_name())
                     .collect::<Vec<String>>();
                 vec![format!("`{}'", cycle_names.join(" -> "))]
             }

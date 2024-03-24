@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -54,7 +54,7 @@ if not objdir.exists():
 print("cargo run --", end=' ')
 
 for line in sys.stdin:
-    line = line[start_trim:-1]
+    line = line.rstrip()
     if line.endswith("INCLUDES"):
         in_include = True
         continue
